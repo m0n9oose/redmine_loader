@@ -341,7 +341,7 @@ class LoaderController < ApplicationController
   def generate_xml
     xml = Builder::XmlMarkup.new( :target => out_string = "", :indent => 2 )
     issues = []
-    @used_issues = []
+    @used_issues = {}
     xml.Project do
        xml.Tasks do
          xml.Task do
