@@ -341,6 +341,7 @@ class LoaderController < ApplicationController
   def generate_xml
     xml = Builder::XmlMarkup.new( :target => out_string = "", :indent => 2 )
     issues = []
+    @used_issues = []
     xml.Project do
        xml.Tasks do
          xml.Task do
@@ -351,56 +352,9 @@ class LoaderController < ApplicationController
            xml.CreateDate(@project.created_on.to_s(:ms_xml))
            xml.ConstraintType("0")
          end
-         id = 0
-         issues =@project.issues.find(:all, :order=>"id")
-         issues.each do |issue|
-           xml.Task do
-             id += 1
-             xml.UID(issue.id)
-             xml.ID(id)
-             xml.Name(issue.subject)
-             xml.Notes(issue.description)
-             xml.CreateDate(issue.created_on.to_s(:ms_xml))
-             xml.Priority(issue.priority_id)
-	           if issue.start_date and issue.due_date
-             	xml.Start(issue.start_date.to_time.to_s(:ms_xml))
-                xml.Finish(issue.due_date.to_time.to_s(:ms_xml)) if issue.due_date
-             end
-             xml.FixedCostAccrual("3")
-             xml.ConstraintType("4")
-   	         if issue.start_date
-                xml.ConstraintDate(issue.start_date.to_time.to_s(:ms_xml))
-             end
-             #If the issue is parent: summary, critical and rollup = 1, if not = 0
-             if is_parent(issue.id) == 1
-               xml.Summary("1")
-               xml.Critical("1")
-               xml.Rollup("1")
-               xml.Type("1")
-             else
-               xml.Summary("0")
-               xml.Critical("0")
-               xml.Rollup("0")
-               xml.Type("0")
-             end
-             xml.PredecessorLink do
-               IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id =? AND relation_type = 'precedes'", issue.id]).select do |ir|
-                 xml.PredecessorUID(ir.issue_from_id)
-               end
-             end
-             #If it is a main task => WBS = id, outlineNumber = id, outlinelevel = 1
-             #If not, we have to get the outlinelevel
-             outlinelevel = 1
-             while (issue.parent_id != nil)
-               issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
-               outlinelevel +=1
-             end
-             xml.WBS(id)
-             xml.OutlineNumber(id)
-             xml.OutlineLevel(outlinelevel)
-           end
-         end
-         versions =@project.versions.find(:all, :order=>"id")
+         @id = 0
+
+         versions =@project.versions.find(:all, :order=>"effective_date, id")
          versions.each do |version|
            xml.Task do
              id += 1
@@ -418,13 +372,18 @@ class LoaderController < ApplicationController
              if version.effective_date
                  xml.ConstraintDate(version.effective_date.to_time.to_s(:ms_xml))
              end
-             issues =@project.issues.find(:all, :conditions =>["fixed_version_id=?",version.id] )
+             issues =@project.issues.find(:all, :conditions =>["fixed_version_id=?",version.id], :order=>"parent_id, start_date, id" )
              issues.each do |issue|
+               write_task(xml, issue, version.effective_date)
                xml.PredecessorLink do
                  xml.PredecessorUID(issue.id)
                end
              end
            end
+         end
+         issues =@project.issues.find(:all, :order=>"parent_id, start_date, id", :conditions =>["fixed_version_id=?",nil])
+         issues.each do |issue|
+           write_task(xml, issue, nil)
          end
        end
        xml.Resources do
@@ -451,7 +410,7 @@ class LoaderController < ApplicationController
            xml.Assignment do
              xml.UID(issue.id)
              xml.TaskUID(issue.id)
-             xml.ResourceUID("-65535")
+             xml.ResourceUID(issue.assigned_to_id)
              xml.PercentWorkComplete(issue.done_ratio)
            end
         end
@@ -461,6 +420,67 @@ class LoaderController < ApplicationController
     #To save the created xml with the name of the project
     projectname = @project.name + ".xml"
     return out_string, projectname
+  end
+
+  def write_task(xml, issue, due_date)
+    if(used_issues.has_key?(issue.id))
+      return
+    end
+    xml.Task do
+      id +=1
+      used_issues[issue.id] = true
+      xml.UID(issue.id)
+      xml.ID(id)
+      xml.Name(issue.subject)
+      xml.Notes(issue.description)
+      xml.CreateDate(issue.created_on.to_s(:ms_xml))
+      xml.Priority(issue.priority_id)
+      if issue.start_date
+        xml.Start(issue.start_date.to_time.to_s(:ms_xml))
+      end
+      if issue.due_date
+        xml.Finish(issue.due_date.to_time.to_s(:ms_xml))
+      elsif due_date
+        xml.Finish(due_date.to_time.to_s(:ms_xml))
+      end
+      xml.FixedCostAccrual("3")
+      xml.ConstraintType("4")
+      if issue.start_date
+        xml.ConstraintDate(issue.start_date.to_time.to_s(:ms_xml))
+      end
+      #If the issue is parent: summary, critical and rollup = 1, if not = 0
+      if is_parent(issue.id) == 1
+        xml.Summary("1")
+        xml.Critical("1")
+        xml.Rollup("1")
+        xml.Type("1")
+      else
+        xml.Summary("0")
+        xml.Critical("0")
+        xml.Rollup("0")
+        xml.Type("0")
+      end
+      xml.PredecessorLink do
+        IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id =? AND relation_type = 'precedes'", issue.id]).select do |ir|
+          xml.PredecessorUID(ir.issue_from_id)
+        end
+      end
+      #If it is a main task => WBS = id, outlineNumber = id, outlinelevel = 1
+      #If not, we have to get the outlinelevel
+      outlinelevel = 1
+      while (issue.parent_id != nil)
+        issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
+        outlinelevel +=1
+      end
+      issues = []
+      issues =@project.issues.find(:all, :order=>"start_date, id", :conditions =>["parent_id=?",issue.id])
+      issues.each do |sub_issue|
+        write_task(xml, sub_issue, due_date)
+      end
+      xml.WBS(id)
+      xml.OutlineNumber(id)
+      xml.OutlineLevel(outlinelevel)
+    end
   end
 
   def hijack_response(out_data, projectname)
