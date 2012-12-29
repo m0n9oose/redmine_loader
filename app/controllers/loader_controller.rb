@@ -353,13 +353,13 @@ class LoaderController < ApplicationController
            xml.ConstraintType("0")
          end
          @id = 0
-
+         # adding version sorting
          versions =@project.versions.find(:all, :order=>"effective_date, id")
          versions.each do |version|
            xml.Task do
              @id += 1
              xml.UID(version.id)
-             xml.ID(id)
+             xml.ID(@id)
              xml.Name(version.name)
              xml.Notes(version.description)
              xml.CreateDate(version.created_on.to_s(:ms_xml))
