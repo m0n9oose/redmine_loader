@@ -357,7 +357,7 @@ class LoaderController < ApplicationController
          versions =@project.versions.find(:all, :order=>"effective_date, id")
          versions.each do |version|
            xml.Task do
-             id += 1
+             @id += 1
              xml.UID(version.id)
              xml.ID(id)
              xml.Name(version.name)
@@ -423,14 +423,14 @@ class LoaderController < ApplicationController
   end
 
   def write_task(xml, issue, due_date)
-    if(used_issues.has_key?(issue.id))
+    if(@used_issues.has_key?(issue.id))
       return
     end
     xml.Task do
-      id +=1
-      used_issues[issue.id] = true
+      @id +=1
+      @used_issues[issue.id] = true
       xml.UID(issue.id)
-      xml.ID(id)
+      xml.ID(@id)
       xml.Name(issue.subject)
       xml.Notes(issue.description)
       xml.CreateDate(issue.created_on.to_s(:ms_xml))
@@ -472,14 +472,15 @@ class LoaderController < ApplicationController
         issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
         outlinelevel +=1
       end
+
+      xml.WBS(@id)
+      xml.OutlineNumber(@id)
+      xml.OutlineLevel(outlinelevel)
       issues = []
       issues =@project.issues.find(:all, :order=>"start_date, id", :conditions =>["parent_id=?",issue.id])
       issues.each do |sub_issue|
         write_task(xml, sub_issue, due_date)
       end
-      xml.WBS(id)
-      xml.OutlineNumber(id)
-      xml.OutlineLevel(outlinelevel)
     end
   end
 
