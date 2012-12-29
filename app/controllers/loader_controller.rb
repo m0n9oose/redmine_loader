@@ -354,7 +354,7 @@ class LoaderController < ApplicationController
          end
          @id = 0
          # adding version sorting
-         versions =@project.versions.find(:all, :order=>"effective_date DESC, id")
+         versions =@project.versions.find(:all, :order=>"effective_date ASC, id")
          versions.each do |version|
            xml.Task do
              @id += 1
@@ -377,12 +377,13 @@ class LoaderController < ApplicationController
              xml.Critical("1")
              xml.Rollup("1")
              xml.Type("1")
-             issues =@project.issues.find(:all, :conditions =>["fixed_version_id=?",version.id], :order=>"parent_id, start_date, id" )
-             issues.each do |issue|
-               xml.PredecessorLink do
-                 xml.PredecessorUID(issue.id)
-               end
-             end
+             # Removed for now causes too many circular references
+             #issues =@project.issues.find(:all, :conditions =>["fixed_version_id=?",version.id], :order=>"parent_id, start_date, id" )
+             #issues.each do |issue|
+             #  xml.PredecessorLink do
+             #    xml.PredecessorUID(issue.id)
+             #  end
+             #end
              xml.WBS(@id)
              xml.OutlineNumber(@id)
              xml.OutlineLevel(1)
@@ -471,11 +472,11 @@ class LoaderController < ApplicationController
         xml.Rollup("0")
         xml.Type("0")
       end
-      xml.PredecessorLink do
-        IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id =? AND relation_type = 'precedes'", issue.id]).select do |ir|
-          xml.PredecessorUID(ir.issue_from_id)
-        end
-      end
+      #xml.PredecessorLink do
+      #  IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id =? AND relation_type = 'precedes'", issue.id]).select do |ir|
+      #    xml.PredecessorUID(ir.issue_from_id)
+      #  end
+      #end
       #If it is a main task => WBS = id, outlineNumber = id, outlinelevel = 1
       #If not, we have to get the outlinelevel
 
