@@ -90,7 +90,7 @@ module LoaderHelper
   # cell or other similar container. Pass the form object being used for the
   # task import view.
 
-  def loaderhelp_user_selector( fieldId, project )
+  def loaderhelp_user_selector( fieldId, project, assigned_to )
 
     # First populate the selection box with all the existing categories from this project
     memberList = Member.find( :all, :conditions => { :project_id => project } )
@@ -109,7 +109,9 @@ module LoaderHelper
     # Add all the users
     userList = userList.sort { |a,b| a.firstname + a.lastname <=> b.firstname + b.lastname }
     userList.each do | user_entry |
-      output << "<option value=\"" + user_entry.id.to_s + "\">" + user_entry.firstname + " " + user_entry.lastname + "</option>"
+      output << "<option value=\"" + user_entry.id.to_s + "\""
+      output << " selected='selected' " if assigned_to == user_entry.id
+      output << " >" + user_entry.firstname + " " + user_entry.lastname + "</option>"
     end
 
     output << "</select>"
