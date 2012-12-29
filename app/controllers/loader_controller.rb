@@ -374,11 +374,14 @@ class LoaderController < ApplicationController
              end
              issues =@project.issues.find(:all, :conditions =>["fixed_version_id=?",version.id], :order=>"parent_id, start_date, id" )
              issues.each do |issue|
-               write_task(xml, issue, version.effective_date)
                xml.PredecessorLink do
                  xml.PredecessorUID(issue.id)
                end
              end
+           end
+           issues =@project.issues.find(:all, :conditions =>["fixed_version_id=?",version.id], :order=>"parent_id, start_date, id" )
+           issues.each do |issue|
+             write_task(xml, issue, version.effective_date)
            end
          end
          issues =@project.issues.find(:all, :order=>"parent_id, start_date, id", :conditions =>["fixed_version_id=?",nil])
@@ -472,15 +475,14 @@ class LoaderController < ApplicationController
         issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
         outlinelevel +=1
       end
-
       xml.WBS(@id)
       xml.OutlineNumber(@id)
       xml.OutlineLevel(outlinelevel)
-      issues = []
-      issues =@project.issues.find(:all, :order=>"start_date, id", :conditions =>["parent_id=?",issue.id])
-      issues.each do |sub_issue|
-        write_task(xml, sub_issue, due_date)
-      end
+    end
+    issues = []
+    issues =@project.issues.find(:all, :order=>"start_date, id", :conditions =>["parent_id=?",issue.id])
+    issues.each do |sub_issue|
+      write_task(xml, sub_issue, due_date)
     end
   end
 
