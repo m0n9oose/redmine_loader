@@ -10,33 +10,30 @@
 ########################################################################
 
 module LoaderHelper
-  
+
   # Generate a project selector for the project to which imported tasks will
   # be assigned. HTML is output which is suitable for inclusion in a table
   # cell or other similar container. Pass the form object being used for the
   # task import view.
-  
-  def loaderhelp_project_selector( form )
-    projectlist = Project.find :all, :conditions => Project.visible_by(User.current)
-    
-    unless( projectlist.empty? )
+
+  def project_selector(form)
+    project_list = Project.find(:all, :conditions => Project.visible_by(User.current))
+
+    unless project_list.empty?
       output  = "        &nbsp;Project to which all tasks will be assigned:\n"
       output  << "<select id=\"import_project_id\" name=\"import[project_id]\"><optgroup label=\"Your Projects\"> "
-      
-      projectlist.each do | projinfo |
-        
-        output = output + "<option value=\"" + projinfo.id.to_s + "\">" + projinfo.to_s + "</option>"
-        
+
+      project_list.each do |project|
+        output = output + "<option value=\"" + project.id.to_s + "\">" + project.to_s + "</option>"
       end
       output << "</optgroup>"
       output << "</select>"
-      
-      
+
     else
       output  = "        There are no projects defined. You can create new\n"
       output << "        projects #{ link_to( 'here', '/project/new' ) }."
     end
-    
+
     return output
   end
 
@@ -44,22 +41,22 @@ module LoaderHelper
   # be assigned. HTML is output which is suitable for inclusion in a table
   # cell or other similar container. Pass the form object being used for the
   # task import view.
-  
-  def loaderhelp_category_selector( fieldId, project, allNewCategories, requestedCategory )
+
+  def category_selector(field_id, project, all_new_categories, requested_category)
 
     # First populate the selection box with all the existing categories from this project
-    existingCategoryList = IssueCategory.find :all, :conditions => { :project_id => project }
-        
-    output = "<select id=\"" + fieldId + "\" name=\"" + fieldId + "\"> "
+    category_list = IssueCategory.find(:all, :conditions => { :project_id => project })
+
+    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\"> "
     # Empty entry
     output << "<option value=\"\"></option>"
     output << "<optgroup label=\"Existing Categories\"> "
 
-    existingCategoryList.each do | category_info |
-      if ( category_info.to_s == requestedCategory )
-        output << "<option value=\"" + category_info.to_s + "\" selected=\"selected\">" + category_info.to_s + "</option>"
+    category_list.each do |category|
+      if category.to_s == requested_category
+        output << "<option value=\"" + category.to_s + "\" selected=\"selected\">" + category.to_s + "</option>"
       else
-        output << "<option value=\"" + category_info.to_s + "\">" + category_info.to_s + "</option>"
+        output << "<option value=\"" + category.to_s + "\">" + category.to_s + "</option>"
       end
     end
 
@@ -68,9 +65,9 @@ module LoaderHelper
     # Now add any new categories that we found in the project file
     #output << "<optgroup label=\"New Categories\"> "
 
-    #allNewCategories.each do | category_name |
-    #  if ( not existingCategoryList.include?(category_name) )
-    #    if ( category_name == requestedCategory )
+    #all_new_categories.each do | category_name |
+    #  if ( not category_list.include?(category_name) )
+    #    if ( category_name == requested_category )
     #      output << "<option value=\"" + category_name + "\" selected=\"selected\">" + category_name + "</option>"
     #    else
     #      output << "<option value=\"" + category_name + "\">" + category_name + "</option>"
@@ -79,9 +76,7 @@ module LoaderHelper
     #end
 
     #output << "</optgroup>"
-
     output << "</select>"
-
     return output
   end
 
@@ -90,34 +85,59 @@ module LoaderHelper
   # cell or other similar container. Pass the form object being used for the
   # task import view.
 
-  def loaderhelp_user_selector( fieldId, project, assigned_to )
-
+  def user_selector(field_id, project, assigned_to)
     # First populate the selection box with all the existing categories from this project
-    memberList = Member.find( :all, :conditions => { :project_id => project } )
-
-    userList = []
-    
-    memberList.each do | current_member |
-      userList.push( User.find( :first, :conditions => { :id => current_member.user_id } ) )
-    end
-
-    output = "<select id=\"" + fieldId + "\" name=\"" + fieldId + "\">"
+    user_list = project.assignable_users
+    user_list.compact!
+    user_list = user_list.uniq
+    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
 
     # Empty entry
     output << "<option value=\"\"></option>"
-
     # Add all the users
-    userList = userList.sort { |a,b| a.firstname + a.lastname <=> b.firstname + b.lastname }
-    userList.each do | user_entry |
+    user_list = user_list.sort {|a, b| a.firstname + a.lastname <=> b.firstname + b.lastname}
+    user_list.each do |user_entry|
       output << "<option value=\"" + user_entry.id.to_s + "\""
-      output << " selected='selected' " if assigned_to == user_entry.id
+      output << " selected='selected' " if assigned_to && assigned_to == user_entry.id
       output << " >" + user_entry.firstname + " " + user_entry.lastname + "</option>"
     end
-
     output << "</select>"
-
     return output
-
   end
-  
+
+  def tracker_selector(field_id, project)
+    tracker_list = project.trackers
+    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
+    tracker_list.each do |tracker|
+      output << "<option value=\"" + tracker.name.to_s + "\""
+      output << " selected='selected' " if Setting.plugin_redmine_loader['tracker'].downcase == tracker.name.to_s.downcase
+      output << " >" + tracker.name.capitalize + "</option>"
+    end
+    output << "</select>"
+    return output
+  end
+
+  def percent_selector(field_id, task_percent)
+    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
+    ((0..10).to_a.map {|p| p*10 }).each do |percent|
+      output << "<option value=\"" + percent.to_s + "\""
+      output << " selected='selected' " if task_percent == percent
+      output << " >" + percent.to_s + "</option>"
+    end
+    output << "</select>"
+    return output
+  end
+
+  def duplicates_count(document, titles)
+    @dupes = 0
+    document.tasks.each do |task|
+      if titles[task.title]
+        @dupes += 1
+        titles[task.title] = @dupes
+      else
+        titles[task.title] = true
+      end
+    end
+    return @dupes
+  end
 end

@@ -1,227 +1,97 @@
+<%= javascript_include_tag('context_menu') %>
 <h1><%= l(:import_tasks) %></h1>
-<script language="javascript" type="text/javascript">
-    function check_box_toggle_field(id, className, prefix, suffix){
-        if (!$$) 
-            return;
-        
-        var doc = '<select id="' + id + '">' +
-        '<option disabled="disabled" selected="selected">Selections...</option>' +
-        '<option>Select all</option>' +
-        '<option>Select none</option>' +
-        '<option>Invert selection</option>' +
-        '</select>';
-        
-        if (prefix) 
-            doc = prefix + doc;
-        if (suffix) 
-            doc = doc + suffix;
-        
-        document.write(doc);
-        
-        var list = document.getElementById(id);
-        if (!list) 
-            return;
-        
-        new SelectionHandler(list, className);
-    }
-    
-    /* Object which handles selection list changes; by using an object, extra
-     * information can be carried through by an event and the EventListener
-     * interface.
-     */
-    function SelectionHandler(list, className){
-        this.list = list;
-        this.className = className;
-        
-        list.addEventListener('change', this, false);
-    }
-    
-    /* Handle changes in the selection list */
-    
-    SelectionHandler.prototype.handleEvent = function(event){
-        /* Perform the relevant action on the check boxes */
-        
-        $$('input.' + this.className).each(function(box){
-            switch (event.currentTarget.selectedIndex) {
-                case 1:
-                    box.checked = true;
-                    break;
-                case 2:
-                    box.checked = false;
-                    break;
-                case 3:
-                    box.checked = !box.checked;
-                    break;
-            }
-        });
-        
-        /* Restore the default selected item in the list */
-        
-        event.currentTarget.options[0].selected = true;
-    }
-</script>
-<%= l(:import_description) -%>
-<%= form_for( :import, { :url => { :action => 'create' }, :html => { :id => 'import', :multipart => true } } ) do | f | %>
-<% if ( @import.nil? or @import.tasks.nil? or @import.tasks.empty? ) -%>
-<p>
-    This plugin can import/Export data from XML format project management files which were created by Microsoft Project.
-</p>
-<p>
-    Any tasks with non-zero work time assigned are included. Task names are
-    generated from the name of each XML file task.  Assigned work time in
-    the XML data is converted to project durations in hours, mathematically
-    rounded to two decimal places if need be. Task codes are created from the
-    current date and the task ID, this being typically directly related to
-    position in which the task is listed in most graphical project plan editors.
-    Tasks are imported including all dependency data.
-</p>
-<p>
-    To import tasks, choose an XML file stored locally on your computer using
-    the button below, then use the "Analyse" button to upload the file. Please
-    be patient - XML project files can be very large and may take a while to
-    upload and analyse. You can GZip the XML file and upload that instead to
-    save on upload time if you are working with low bandwidth.
-</p>
-<p>
-    When analysis is complete, a summary of the tasks that have been found will
-    be presented, allowing you to control exactly which tasks are imported.
-</p>
-<% else -%>
-<p>
-    The tasks found in the file are listed below. Only items with a ticked check
-    box next to them will be imported. Once happy with your selection, use the
-    "Import" button to begin the import process. To abandon the import, use the
-    "Cancel" link or choose a different file for analysis and use the "Analyse"
-    button to begin the upload and analysis process again.
-</p>
-<p>
-    The drop-down menu below the task list lets you select a project to which
-    all tasks will be assigned. The default value selected is chosen according
-    to your account settings.
-</p>
-<table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
-    <tr valign="middle" align="center" class="info">
-        <th> 
-            &nbsp;UID&nbsp;
-        </th>
-        <th align="left"> 
-            &nbsp;Name
-        </th>
-	<th>
-            &nbsp;Tracker&nbsp;
-        </th>
-        <th>
-            &nbsp;Start Date&nbsp;
-        </th>
-        <th>
-            &nbsp;End Date&nbsp;
-        </th>
-        <th>
-            &nbsp;%&nbsp;
-        </th>
-        <th>
-            &nbsp;Assigned to&nbsp;
-        </th>
-        <th>
-            &nbsp;Requires&nbsp;
-        </th>
-        <th>
-            &nbsp;Import?&nbsp;
-        </th>
+<%= form_for(:import, {:url => {:action => 'create'}, :html => {:id => 'import', :multipart => true}}) do |f| %>
+  <% unless @import %>
+    <p><%= l(:about_1) %></p>
+    <p><%= l(:about_2) %></p>
+    <p><%= l(:about_3) %></p>
+    <p><%= l(:about_4) %></p>
+    <%= f.file_field 'xmlfile' %>
+    <tr>
+      <%= f.submit(l(:analyze), {:name => 'import[analyse]', :disable_with => l(:analyzing)}) %>
+      <%= link_to(l(:back), {:controller => 'loader', :action => 'new'}) if controller.action_name == 'create' %>
     </tr>
-    <% titles = {}
-    dupes  = 0
-    @import.tasks.each do | task |
-      if ( titles[ task.title ] == true )
-         dupes += 1
-         titles[ task.title ] = dupes
-      elsif ( titles[ task.title ].nil? )
-         titles[ task.title ] = true
-      end
-    end
-    index = -1
-    @import.tasks.each do | task |
-    index += 1 -%>
-    <tr valign="top" align="center" class="<%= cycle( 'even', 'odd' ) -%>">
+  <% else %>
+    <p><%= l(:about_analyzed) %></p>
+    <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
+      <tr valign="middle" align="center" class="info">
+        <th><%= link_to_function l(:import), 'toggleIssuesSelection(this);' %></th>
+        <th>UID</th>
+        <%= content_tag(:th, l(:name)) %>
+        <%= content_tag(:th, l(:tracker)) %>
+        <%= content_tag(:th, l(:start_date)) %>
+        <%= content_tag(:th, l(:end_date)) %>
+        <th>%</th>
+        <%= content_tag(:th, l(:assigned_to)) %>
+        <%= content_tag(:th, l(:priority)) %>
+        <%= content_tag(:th, l(:requires)) %>
+      </tr>
+      <% titles = {} %>
+      <% duplicates_count(@import, titles) %>
+      <% @import.tasks.each_with_index do |task, index| %>
+      <tr valign="top" align="center" class="<%= cycle('even', 'odd') %>">
         <td>
-            <%= hidden_field_tag( "import[tasks][#{ index }][uid]", h( task.uid ) ) %>
-            <%= hidden_field_tag( "import[tasks][#{ index }][level]", h( task.level ) ) %>
-	    	<%= hidden_field_tag( "import[tasks][#{ index }][outnum]", h( task.outnum ) ) %>
-	    	<%= hidden_field_tag( "import[tasks][#{ index }][outlinenumber]", h( task.outlinenumber ) ) %>	
-	    	<%= hidden_field_tag( "import[tasks][#{ index }][duration]", h( task.duration ) ) %>	
-	    	<%= hidden_field_tag( "import[tasks][#{ index }][notes]", h( task.notes ) ) %>	
-            <%= h( task.uid ) %>
+          <%= check_box_tag("import[tasks][#{ index }][import]", '1', true, {:class => 'checkbox'}) %>
+        </td>
+        <td>
+          <%= hidden_field_tag("import[tasks][#{ index }][uid]", h(task.uid)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][level]", h(task.level)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][outnum]", h(task.outnum)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][outlinenumber]", h(task.outlinenumber)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][duration]", h(task.duration)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][notes]", h(task.notes)) %>
+          <%= h(task.uid) %>
         </td>
         <td align="left" class="task_title">
-            <%= titles[ task.title ] != true ? "<span class=\"dup\">#{ titles[ task.title] }:</span>" : '&nbsp;' %>
-            <%= text_field_tag( "import[tasks][#{ index }][title]", h( task.title ), { :size => 50, :class => 'task_title' } ) %> 
-        </td>
-	<td align="left">
-            <%= text_field_tag( "import[tasks][#{ index }][tracker_name]", h( task.tracker_name ), { :size => 20 } ) %>
+          <%= (titles[task.title] == true ? '&nbsp;&nbsp;' : "<span class=\"dup\">#{ titles[task.title] }</span>").html_safe %>
+          <%= text_field_tag("import[tasks][#{ index }][title]", h(task.title), {:size => 50, :class => 'task_title'}) %>
         </td>
         <td align="left">
-            <%= text_field_tag( "import[tasks][#{ index }][start]", h( task.start ), { :size => 10 } ) %>
+          <%= tracker_selector("import[tasks][#{ index }][tracker_name]", @project).html_safe %>
         </td>
         <td align="left">
-            <%= text_field_tag( "import[tasks][#{ index }][finish]", h( task.finish ), { :size => 10 } ) %>
+          <%= text_field_tag("import[tasks][#{ index }][start]", h(task.start), {:size => 10}) %>
         </td>
         <td align="left">
-            <%= text_field_tag( "import[tasks][#{ index }][percentcomplete]", h( task.percentcomplete ), { :size => 3 } ) %>
+          <%= text_field_tag("import[tasks][#{ index }][finish]", h(task.finish), {:size => 10}) %>
+        </td>
+        <td align="left">
+          <%= percent_selector("import[tasks][#{ index }][percentcomplete]", task.percentcomplete.to_i).html_safe %>
         </td>
         <td>
-            <%= loaderhelp_user_selector( "import[tasks][#{ index }][assigned_to]", @project, task.assigned_to ) %>
+          <%= user_selector("import[tasks][#{ index }][assigned_to]", @project, task.assigned_to).html_safe %>
         </td>
         <td>
-            <%= hidden_field_tag( "import[tasks][#{ index }][predecessors]", h( task.predecessors.join(', ') ) ) %>
-            <%= h( task.predecessors.join(', ') ) %>
+          <%= h(task.priority) %>
         </td>
         <td>
-            <%= check_box_tag( "import[tasks][#{ index }][import]", '1', true, { :class => 'checkbox' } ) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][predecessors]", h(task.predecessors.join(', '))) %>
+          <%= h(task.predecessors.join(', ')) %>
         </td>
-	<td>
-            <%= hidden_field_tag( "import[tasks][#{ index }][delays]", h( task.delays.join(', ') ) ) %>
-            <%= hidden_field_tag( "import[tasks][#{ index }][milestone]", h( task.milestone ) ) %>
-        </td>	
-    </tr>
+        <td>
+          <%= hidden_field_tag("import[tasks][#{ index }][delays]", h(task.delays.join(', '))) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][milestone]", h(task.milestone)) %>
+        </td>
+      </tr>
+      <% end %>
+      <tr>
+        <td align="right" colspan="10"><%= f.submit(l(:import_selected), {:name => 'import[import_selected]'}) %></td>
+        <%= content_tag(:td, link_to(l(:back), {:controller => 'loader', :action => 'new'})) %>
+      </tr>
+    </table>
+    <% if @dupes > 0 %>
+      <p align="center" colspan="5"><%= l(:warning_text).html_safe %></p>
     <% end %>
-    <tr>
-        <td align="right" colspan="10">
-            <script language="javascript" type="text/javascript">
-                check_box_toggle_field('toggle_check_boxes', 'checkbox', 'Select tasks&nbsp;', '&nbsp;then');
-            </script>
-            <%= f.submit( 'Import selected tasks', { :name => 'import[import_selected]' } ) %>
-        </td>
-    </tr>
-    <% if ( dupes > 0 ) %>
-    <tr>
-        <td align="right" colspan="5">
-            <strong>Warning!</strong>
-            Some task titles are identical. You need to rename them if importing. If you see a '500' Server error - you may have missed one.
-        </td>
-    </tr>
-    <% end %>
-</table>
-<p>
-    Alternatively, ignore the above tasks and analyse a different file:
-</p>
+  <% end %>
+  <%= hidden_field_tag("project_id", "#{@project.id}") %>
 <% end %>
-<%= hidden_field_tag( "project_id", "#{@project.id}" ) %>
-<%= f.file_field 'xmlfile' %>
-<%= f.submit( 'Analyse', { :name => 'import[analyse]', :disable_with => 'Analysing...' } ) %>
-<% end %>
-<p>
-    <%= link_to( 'Cancel and return home', home_path() ) %>
-</p>
-
-<h1><%= l(:export_tasks) %></h1>
-<%= form_for( :import, { :url => { :action => 'export' },  :html => { :id => 'import', :multipart => true } } ) do | f | %>
-<p>
-    Generate a XML file to export all our Redmine issues to MS Project.
-</p>
-
-
-<%= hidden_field_tag( "project_id", "#{@project.id}" ) %>
-<%= f.submit( 'Export Issue', { :name => 'export'} ) %>
-
-
+<br />
+<br />
+<% if controller.action_name == 'new' %>
+  <h1><%= l(:export_tasks) %></h1>
+  <%= form_for(:import, {:url => {:action => 'export'}, :html => {:id => 'export', :multipart => true}}) do |f| %>
+    <p><%= l(:generate_xml) %></p>
+    <%= hidden_field_tag("project_id", "#{@project.id}") %>
+    <%= f.submit(l(:export_issue), {:name => 'export'}) %>
+  <% end %>
 <% end %>

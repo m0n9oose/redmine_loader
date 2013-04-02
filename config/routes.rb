@@ -3,5 +3,5 @@ if Rails::VERSION::MAJOR < 3
 	  map.connect 'redmine_loader/:action', :controller => 'loader'
 	end
 else
-	match 'redmine_loader/(:action)', :controller => 'loader'
+	match 'projects/:project_id/redmine_loader/:action', :controller => 'loader'
 end
