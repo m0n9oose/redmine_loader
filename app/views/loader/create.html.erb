@@ -1,0 +1,75 @@
+<%= javascript_include_tag('context_menu') %>
+<h1><%= l(:import_tasks) %></h1>
+<%= form_for(:import, {:url => {:action => 'create'}, :html => {:id => 'import', :multipart => true}}) do |f| %>
+  <p><%= l(:about_analyzed) %></p>
+  <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
+    <tr valign="middle" align="center" class="info">
+      <th><%= link_to_function l(:import), 'toggleIssuesSelection(this);' %></th>
+      <th>UID</th>
+      <%= content_tag(:th, l(:name)) %>
+      <%= content_tag(:th, l(:tracker)) %>
+      <%= content_tag(:th, l(:start_date)) %>
+      <%= content_tag(:th, l(:end_date)) %>
+      <th>%</th>
+      <%= content_tag(:th, l(:assigned_to)) %>
+      <%= content_tag(:th, l(:priority)) %>
+      <%= content_tag(:th, l(:requires)) %>
+    </tr>
+    <% titles = {} %>
+    <% duplicates_count(@import, titles) %>
+    <% @import.tasks.each_with_index do |task, index| %>
+      <tr valign="top" align="center" class="<%= cycle('even', 'odd') %>">
+        <td>
+          <%= check_box_tag("import[tasks][#{ index }][import]", '1', true, {:class => 'checkbox'}) %>
+        </td>
+        <td>
+          <%= hidden_field_tag("import[tasks][#{ index }][uid]", h(task.uid)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][level]", h(task.level)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][outnum]", h(task.outnum)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][outlinenumber]", h(task.outlinenumber)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][duration]", h(task.duration)) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][notes]", h(task.notes)) %>
+          <%= h(task.uid) %>
+        </td>
+        <td align="left" class="task_title">
+          <%= (titles[task.title] == true ? '&nbsp;&nbsp;' : "<span class=\"dup\">#{ titles[task.title] }</span>").html_safe %>
+          <%= text_field_tag("import[tasks][#{ index }][title]", h(task.title), {:size => 50, :class => 'task_title'}) %>
+        </td>
+        <td align="left">
+          <%= tracker_selector("import[tasks][#{ index }][tracker_name]", @project).html_safe %>
+        </td>
+        <td align="left">
+          <%= text_field_tag("import[tasks][#{ index }][start]", h(task.start), {:size => 10}) %>
+        </td>
+        <td align="left">
+          <%= text_field_tag("import[tasks][#{ index }][finish]", h(task.finish), {:size => 10}) %>
+        </td>
+        <td align="left">
+          <%= percent_selector("import[tasks][#{ index }][percentcomplete]", task.percentcomplete.to_i).html_safe %>
+        </td>
+        <td>
+          <%= user_selector("import[tasks][#{ index }][assigned_to]", @project, task.assigned_to).html_safe %>
+        </td>
+        <td>
+          <%= h(task.priority) %>
+        </td>
+        <td>
+          <%= hidden_field_tag("import[tasks][#{ index }][predecessors]", h(task.predecessors.join(', '))) %>
+          <%= h(task.predecessors.join(', ')) %>
+        </td>
+        <td>
+          <%= hidden_field_tag("import[tasks][#{ index }][delays]", h(task.delays.join(', '))) %>
+          <%= hidden_field_tag("import[tasks][#{ index }][milestone]", h(task.milestone)) %>
+        </td>
+      </tr>
+    <% end %>
+    <tr>
+      <td align="right" colspan="10"><%= f.submit(l(:import_selected), {:name => 'import[import_selected]'}) %></td>
+      <%= content_tag(:td, link_to(l(:back), {:controller => 'loader', :action => 'new'})) %>
+    </tr>
+  </table>
+  <% if @dupes > 0 %>
+    <p align="center" colspan="5"><%= l(:warning_text).html_safe %></p>
+  <% end %>
+<% end %>
+<%= hidden_field_tag("project_id", "#{@project.id}") %>

@@ -1,16 +1,12 @@
-class TaskImport
-  @tasks = []
-  @project_id = nil
-  @new_categories = []
-
-  attr_accessor :tasks, :project_id, :new_categories
-end
-
 class LoaderController < ApplicationController
 
   unloadable
 
-  before_filter :find_project, :authorize, :only => [:new, :create]
+  before_filter :find_project, :only => [:new, :create, :export]
+  before_filter :authorize, :only => [:new, :create]
+
+  include QueriesHelper
+  include SortHelper
 
   require 'zlib'
   require 'ostruct'
@@ -58,11 +54,14 @@ class LoaderController < ApplicationController
         xmldoc = REXML::Document.new(readxml)
         @import.tasks, @import.new_categories = get_tasks_from_xml(xmldoc)
 
-        if @import.tasks.any?
+        if @import.try { |e| e.tasks.any? }
           flash[:notice] = l(:tasks_read_successfully)
+          render :action => :create
         else
           flash[:error] = l(:no_tasks_found)
+          redirect_to :back
         end
+
         readxml.close
 
       rescue => error
@@ -73,12 +72,8 @@ class LoaderController < ApplicationController
 
         lines = error.message.split("\n")
         flash[:error] = l(:failed_read) + lines.to_s
+        redirect_to :back
       end
-
-      render :action => :new
-      flash.delete :error
-      flash.delete :notice
-
     else
 
       # No file was specified. If there are no tasks either, complain.
@@ -87,8 +82,7 @@ class LoaderController < ApplicationController
 
       if tasks.nil?
         flash[:error] = l(:choose_file_warning)
-        render :action => :new
-        flash.delete :error
+        redirect_to :back
         return
       end
 
@@ -165,7 +159,6 @@ class LoaderController < ApplicationController
       unless flash[:error].nil?
         render :action => :new
         flash.delete :error
-        return
       end
 
       # We're going to keep track of new issue ID's to make dependencies work later
@@ -298,7 +291,6 @@ class LoaderController < ApplicationController
   end
 
   def export
-    find_project
     xml, name = generate_xml
     hijack_response(xml, name)
   end
@@ -310,6 +302,7 @@ class LoaderController < ApplicationController
   end
 
   def generate_xml
+    retrieve_query
     xml = Builder::XmlMarkup.new(:target => out_string = "", :indent => 2)
     issues = []
     @used_issues = {}
@@ -327,39 +320,13 @@ class LoaderController < ApplicationController
         # adding version sorting
         versions = @project.versions.find(:all, :order => "effective_date ASC, id")
         versions.each do |version|
-          xml.Task do
-            @id += 1
-            xml.UID(version.id)
-            xml.ID(@id)
-            xml.Name(version.name)
-            xml.Notes(version.description)
-            xml.CreateDate(version.created_on.to_s(:ms_xml))
-
-            if version.effective_date
-              xml.Start(version.effective_date.to_time.to_s(:ms_xml))
-              xml.Finish(version.effective_date.to_time.to_s(:ms_xml))
-            end
-            xml.FixedCostAccrual("3")
-            xml.ConstraintType("4")
-            xml.ConstraintDate(version.effective_date.to_time.to_s(:ms_xml)) if version.effective_date
-            xml.Summary("1")
-            xml.Critical("1")
-            xml.Rollup("1")
-            xml.Type("1")
-            # Removed for now causes too many circular references
-            #issues = @project.issues.find(:all, :conditions => ["fixed_version_id = ?", version.id], :order => "parent_id, start_date, id")
-            #issues.each do |issue|
-            #  xml.PredecessorLink { xml.PredecessorUID(issue.id) }
-            #end
-            xml.WBS(@id)
-            xml.OutlineNumber(@id)
-            xml.OutlineLevel(1)
-          end
-          issues = @project.issues.find(:all, :conditions => ["fixed_version_id=?",version.id], :order => "parent_id, start_date, id" )
-          issues.each { |issue| write_task(xml, issue, version.effective_date, true) }
+        # Uncomment below if you want to export all related with issues project versions
+          # write_version(xml, version)
+          issues = @query ? @query.issues.visible : @project.issues.find(:all, :conditions => ["fixed_version_id = ?",version.id], :order => "parent_id, start_date, id" )
+          issues.each { |issue| write_task(xml, issue, version.effective_date, true); puts issue.id }
         end
-        issues = @project.issues.find(:all, :order => "parent_id, start_date, id", :conditions => ["fixed_version_id = ?", nil])
-        issues.each { |issue| write_task(xml, issue, nil, false) }
+        issues = @query ? @query.issues.visible : @project.issues.find(:all, :order => "parent_id, start_date, id", :conditions => ["fixed_version_id = ?", nil])
+        issues.each { |issue| write_task(xml, issue, nil, false); puts issue.id }
       end
       xml.Resources do
         xml.Resource do
@@ -393,12 +360,11 @@ class LoaderController < ApplicationController
     end
 
     #To save the created xml with the name of the project
-    projectname = @project.name + ".xml"
+    projectname = @project.name + '-' + Time.now.strftime("%Y-%m-%d-%H-%M") + ".xml"
     return out_string, projectname
   end
 
   def write_task(xml, issue, due_date, under_version)
-
     return if @used_issues.has_key?(issue.id)
     xml.Task do
       @id += 1
@@ -419,17 +385,11 @@ class LoaderController < ApplicationController
       xml.ConstraintType("4")
       xml.ConstraintDate(issue.start_date.to_time.to_s(:ms_xml)) if issue.start_date
       #If the issue is parent: summary, critical and rollup = 1, if not = 0
-      if is_parent(issue.id) == 1
-        xml.Summary("1")
-        xml.Critical("1")
-        xml.Rollup("1")
-        xml.Type("1")
-      else
-        xml.Summary("0")
-        xml.Critical("0")
-        xml.Rollup("0")
-        xml.Type("0")
-      end
+      parent = is_parent(issue.id) ? 1 : 0
+      xml.Summary(parent)
+      xml.Critical(parent)
+      xml.Rollup(parent)
+      xml.Type(parent)
 
       #xml.PredecessorLink do
       #  IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id = ? AND relation_type = 'precedes'", issue.id]).select do |ir|
@@ -452,6 +412,36 @@ class LoaderController < ApplicationController
     issues = []
     issues = @project.issues.find(:all, :order => "start_date, id", :conditions => ["parent_id=?", issue.id])
     issues.each { |sub_issue| write_task(xml, sub_issue, due_date, under_version) }
+  end
+
+  def write_version(xml, version)
+    xml.Task do
+      @id += 1
+      xml.UID(version.id)
+      xml.ID(@id)
+      xml.Name(version.name)
+      xml.Notes(version.description)
+      xml.CreateDate(version.created_on.to_s(:ms_xml))
+      if version.effective_date
+        xml.Start(version.effective_date.to_time.to_s(:ms_xml))
+        xml.Finish(version.effective_date.to_time.to_s(:ms_xml))
+      end
+      xml.FixedCostAccrual("3")
+      xml.ConstraintType("4")
+      xml.ConstraintDate(version.effective_date.to_time.to_s(:ms_xml)) if version.effective_date
+      xml.Summary("1")
+      xml.Critical("1")
+      xml.Rollup("1")
+      xml.Type("1")
+      # Removed for now causes too many circular references
+      #issues = @project.issues.find(:all, :conditions => ["fixed_version_id = ?", version.id], :order => "parent_id, start_date, id")
+      #issues.each do |issue|
+      #  xml.PredecessorLink { xml.PredecessorUID(issue.id) }
+      #end
+      xml.WBS(@id)
+      xml.OutlineNumber(@id)
+      xml.OutlineLevel(1)
+    end
   end
 
   def hijack_response(out_data, projectname)

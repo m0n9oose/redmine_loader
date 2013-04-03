@@ -1,5 +1,7 @@
 require 'redmine'
 
+require_dependency 'loader'
+
 Redmine::Plugin.register :redmine_loader do
 
   name 'Basic project file loader for Redmine'
@@ -17,8 +19,8 @@ Redmine::Plugin.register :redmine_loader do
   default_tracker_alias = 'Tracker'
 
   settings :default => {
-	:tracker => default_tracker_name, 
-	:tracker_alias => default_tracker_alias 
+	:tracker => default_tracker_name,
+	:tracker_alias => default_tracker_alias
   }, :partial => 'settings/loader_settings'
 
 
