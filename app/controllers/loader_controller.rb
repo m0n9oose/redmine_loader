@@ -301,10 +301,20 @@ class LoaderController < ApplicationController
     @project = Project.find(params[:project_id])
   end
 
-  def generate_xml
+  def get_sorted_query
     retrieve_query
+    sort_init(@query.sort_criteria.empty? ? [['id', 'desc']] : @query.sort_criteria)
+    sort_update(@query.sortable_columns)
+    @query.sort_criteria = sort_criteria.to_a
+    @query_issues = @query.issues(:include => [:assigned_to, :tracker, :priority, :category, :fixed_version], :order => sort_clause)
+  end
+
+  def generate_xml
+
+    @id = 0
+    request_from = Rails.application.routes.recognize_path(request.referrer)
+    get_sorted_query unless request_from[:controller] =~ /loader/
     xml = Builder::XmlMarkup.new(:target => out_string = "", :indent => 2)
-    issues = []
     @used_issues = {}
     xml.Project do
       xml.Tasks do
@@ -316,17 +326,21 @@ class LoaderController < ApplicationController
           xml.CreateDate(@project.created_on.to_s(:ms_xml))
           xml.ConstraintType("0")
         end
-        @id = 0
-        # adding version sorting
-        versions = @project.versions.find(:all, :order => "effective_date ASC, id")
-        versions.each do |version|
-        # Uncomment below if you want to export all related with issues project versions
-          # write_version(xml, version)
-          issues = @query ? @query.issues.visible : @project.issues.find(:all, :conditions => ["fixed_version_id = ?",version.id], :order => "parent_id, start_date, id" )
-          issues.each { |issue| write_task(xml, issue, version.effective_date, true); puts issue.id }
+
+        if @query
+          @query_issues.each { |issue| write_task(xml, issue) }
+        else
+          # adding version sorting
+          versions = @project.versions.find(:all, :order => "effective_date ASC, id")
+          versions.each do |version|
+          # Uncomment below if you want to export all related with issues project versions
+            # write_version(xml, version)
+            issues = @project.issues.find(:all, :conditions => ["fixed_version_id = ?",version.id], :order => "parent_id, start_date, id" )
+            issues.each { |issue| write_task(xml, issue, version.effective_date, true) }
+          end
+          issues = @project.issues.find(:all, :order => "parent_id, start_date, id", :conditions => ["fixed_version_id = ?", nil])
+          issues.each { |issue| write_task(xml, issue) }
         end
-        issues = @query ? @query.issues.visible : @project.issues.find(:all, :order => "parent_id, start_date, id", :conditions => ["fixed_version_id = ?", nil])
-        issues.each { |issue| write_task(xml, issue, nil, false); puts issue.id }
       end
       xml.Resources do
         xml.Resource do
@@ -348,7 +362,8 @@ class LoaderController < ApplicationController
       end
       # We do not assign the issue to any resource, just set the done_ratio
       xml.Assignments do
-        @project.issues.each do |issue|
+        source_issues = @query ? @query_issues : @project.issues
+        source_issues.each do |issue|
           xml.Assignment do
             xml.UID(issue.id)
             xml.TaskUID(issue.id)
@@ -360,11 +375,11 @@ class LoaderController < ApplicationController
     end
 
     #To save the created xml with the name of the project
-    projectname = @project.name + '-' + Time.now.strftime("%Y-%m-%d-%H-%M") + ".xml"
+    projectname = "#{@project.name}-#{Time.now.strftime("%Y-%m-%d-%H-%M")}.xml"
     return out_string, projectname
   end
 
-  def write_task(xml, issue, due_date, under_version)
+  def write_task(xml, issue, due_date=nil, under_version=false)
     return if @used_issues.has_key?(issue.id)
     xml.Task do
       @id += 1
@@ -409,9 +424,8 @@ class LoaderController < ApplicationController
       xml.OutlineNumber(@id)
       xml.OutlineLevel(outlinelevel)
     end
-    issues = []
-    issues = @project.issues.find(:all, :order => "start_date, id", :conditions => ["parent_id=?", issue.id])
-    issues.each { |sub_issue| write_task(xml, sub_issue, due_date, under_version) }
+#    issues = @project.issues.find(:all, :order => "start_date, id", :conditions => ["parent_id = ?", issue.id])
+#    issues.each { |sub_issue| write_task(xml, sub_issue, due_date, under_version) }
   end
 
   def write_version(xml, version)
