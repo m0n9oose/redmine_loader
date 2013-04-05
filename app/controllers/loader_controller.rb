@@ -50,9 +50,10 @@ class LoaderController < ApplicationController
         xmlfile.rewind
 
         xmlfile = Zlib::GzipReader.new xmlfile unless byte == '<'[0]
-        readxml = File.open(xmlfile, 'r')
-        xmldoc = REXML::Document.new(readxml)
-        @import.tasks, @import.new_categories = get_tasks_from_xml(xmldoc)
+        File.open(xmlfile, 'r') do |readxml|
+          xmldoc = REXML::Document.new(readxml)
+          @import.tasks, @import.new_categories = get_tasks_from_xml(xmldoc)
+        end
 
         if @import.try { |e| e.tasks.any? }
           flash[:notice] = l(:tasks_read_successfully)
@@ -61,8 +62,6 @@ class LoaderController < ApplicationController
           flash[:error] = l(:no_tasks_found)
           redirect_to :back
         end
-
-        readxml.close
 
       rescue => error
 
@@ -106,7 +105,6 @@ class LoaderController < ApplicationController
         index = taskinfo[0].to_i
         task = taskinfo[1]
         struct = OpenStruct.new
-
         struct.uid = task[:uid]
         struct.title = task[:title]
         struct.level = task[:level]
@@ -280,9 +278,9 @@ class LoaderController < ApplicationController
             end
           end
         end
-        redirect_to "/projects/#{@project.identifier}/issues"
+        redirect_to project_issues_path(@project)
 
-        rescue => error
+      rescue => error
         flash[:error] = l(:unable_import) + error.to_s
         logger.debug "DEBUG: Unable to import tasks: #{ error }"
         render :action => :new
@@ -321,10 +319,12 @@ class LoaderController < ApplicationController
         xml.Task do
           xml.UID("0")
           xml.ID("0")
+          xml.ConstraintType("0")
+          xml.OutlineNumber("0")
+          xml.OutlineLevel("0")
           xml.Name(@project.name)
           xml.Type("1")
           xml.CreateDate(@project.created_on.to_s(:ms_xml))
-          xml.ConstraintType("0")
         end
 
         if @query
@@ -500,12 +500,12 @@ class LoaderController < ApplicationController
         struct.tid = task.get_elements('ID')[0].try { |e| e.text.to_i }
         struct.uid = task.get_elements('UID')[0].try { |e| e.text.to_i }
         struct.title = task.get_elements('Name')[0].try { |e| e.text.strip }
-        struct.start = task.get_elements('Start')[0].text.try { |e| e.split("T")[0] }
-        struct.finish = task.get_elements('Finish')[0].text.try { |e| e.split("T")[0] }
+        struct.start = task.get_elements('Start')[0].try { |e| e.text.split("T")[0] }
+        struct.finish = task.get_elements('Finish')[0].try { |e| e.text.split("T")[0] }
         struct.priority = task.get_elements('Priority')[0].try { |e| e.text.to_i }
 
-        s1 = task.get_elements('Start')[0].text.try(:strip)
-        s2 = task.get_elements('Finish')[0].text.try(:strip)
+        s1 = task.get_elements('Start')[0].try { |e| e.text.strip }
+        s2 = task.get_elements('Finish')[0].try { |e| e.text.strip }
 
         task.each_element("ExtendedAttribute[FieldID='#{tracker_field_id}']/Value") do |tracker_value|
           struct.tracker_name = tracker_value.text
@@ -514,14 +514,14 @@ class LoaderController < ApplicationController
         # If the start date and the finish date are the same it is a milestone
         # struct.milestone = s1 == s2 ? 1 : 0
 
-        struct.percentcomplete = task.get_elements('PercentComplete')[0].text.to_i
-        struct.notes = task.get_elements('Notes')[0].try { |e| e.text.strip }
+        struct.percentcomplete = task.get_elements('PercentComplete')[0].try { |e| e.text.to_i }
+        struct.notes = task.get_elements('Notes')[0].try { |e| e.text.try(:strip) }
         struct.predecessors = []
         struct.delays = []
         task.each_element('PredecessorLink') do |predecessor|
         begin
-          struct.predecessors.push(predecessor.get_elements('PredecessorUID')[0].text.to_i)
-          struct.delays.push(predecessor.get_elements('LinkLag')[0].text.to_i)
+          struct.predecessors.push(predecessor.get_elements('PredecessorUID')[0].try { |e| e.text.to_i })
+          struct.delays.push(predecessor.get_elements('LinkLag')[0].text.try { |e| e.to_i })
         end
       end
 
