@@ -1,0 +1,9 @@
+Congrats, your tasks
+
+<ul>
+  <% @issues.each do |issue| -%>
+    <li><%=h issue.project %> - <%=link_to(h("#{issue.tracker} ##{issue.id}"), :controller => 'issues', :action => 'show', :id => issue, :only_path => false)%>: <%=h issue.subject %></li>
+  <% end -%>
+</ul>
+
+You can find it <%= link_to 'here', project_issues_path(@project)%>
