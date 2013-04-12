@@ -19,7 +19,7 @@ end
 
 class Loader < ActiveRecord::Base
 
- def self.import_tasks(to_import, project, notify=nil)
+ def self.import_tasks(to_import, project, notify=nil, user=nil)
 
     # We're going to keep track of new issue ID's to make dependencies work later
     uidToIssueIdMap = {}
@@ -139,7 +139,7 @@ class Loader < ActiveRecord::Base
       end
     end
 
-    Mailer.notify_about_import(User.current, project, to_import) if notify
+    Mailer.notify_about_import(user, project, to_import).deliver if notify
 
   end
 end

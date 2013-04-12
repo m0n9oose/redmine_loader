@@ -166,7 +166,7 @@ class LoaderController < ApplicationController
           flash[:notice] = 'Tasks imported'
           redirect_to project_issues_path(@project)
         else
-          Loader.delay.import_tasks(to_import, @project, true)
+          Loader.delay.import_tasks(to_import, @project, true, User.current)
           flash[:notice] = 'Your tasks being imported'
           render :action => :new
         end

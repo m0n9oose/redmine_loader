@@ -2,8 +2,10 @@ Congrats, your tasks
 
 <ul>
   <% @issues.each do |issue| -%>
-    <li><%=h issue.project %> - <%=link_to(h("#{issue.tracker} ##{issue.id}"), :controller => 'issues', :action => 'show', :id => issue, :only_path => false)%>: <%=h issue.subject %></li>
+    <li><%= h("#{issue.tracker_name}") %>: <%=h issue.title %></li>
   <% end -%>
 </ul>
 
-You can find it <%= link_to 'here', project_issues_path(@project)%>
+were successfully imported to project <%= @project.name %>.
+<br />
+You can find it <%= link_to 'here', project_issues_url(@project)%>.
