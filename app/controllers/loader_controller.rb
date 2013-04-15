@@ -218,7 +218,8 @@ class LoaderController < ApplicationController
         end
 
         if @query
-          @query_issues.each { |issue| write_task(xml, issue) }
+          determine_nesting(@query_issues)
+          @nested_issues.each { |struct| write_task(xml, struct) }
         else
           # adding version sorting
           versions = @project.versions.find(:all, :order => "effective_date ASC, id")
@@ -226,10 +227,12 @@ class LoaderController < ApplicationController
           # Uncomment below if you want to export all related with issues project versions
             # write_version(xml, version)
             issues = @project.issues.find(:all, :conditions => ["fixed_version_id = ?",version.id], :order => "parent_id, start_date, id" )
-            issues.each { |issue| write_task(xml, issue, version.effective_date, true) }
+            determine_nesting(issues)
+            @nested_issues.each { |issue| write_task(xml, issue, version.effective_date, true) }
           end
           issues = @project.issues.find(:all, :order => "parent_id, start_date, id", :conditions => ["fixed_version_id = ?", nil])
-          issues.each { |issue| write_task(xml, issue) }
+          determine_nesting(issues)
+          @nested_issues.each { |issue| write_task(xml, issue) }
         end
       end
       xml.Resources do
@@ -269,28 +272,46 @@ class LoaderController < ApplicationController
     return out_string, projectname
   end
 
-  def write_task(xml, issue, due_date=nil, under_version=false)
-    return if @used_issues.has_key?(issue.id)
+  def determine_nesting(issues)
+    @nested_issues = []
+    grouped = issues.group_by{ |issue| issue.level }.sort_by{ |key| key }
+    grouped.each do |level, grouped_issues|
+      internal_id = 0
+      grouped_issues.each do |issue|
+        internal_id += 1
+        struct = OpenStruct.new
+        struct.issue = issue
+        struct.outline_level = issue.child? ? 2 : 1
+        struct.tid = issues.index(issue)
+        parent_outline = @nested_issues.select{ |struct| struct.issue == issue.parent }.first.try(:outline_number)
+        struct.outline_number = issue.child? ? "#{parent_outline}#{'.' + internal_id.to_s}" : issues.index(issue)
+        @nested_issues << struct
+      end
+    end
+    return @nested_issues
+  end
+
+  def write_task(xml, struct, due_date=nil, under_version=false)
+    return if @used_issues.has_key?(struct.issue.id)
     xml.Task do
-      @id += 1
-      @used_issues[issue.id] = true
-      xml.UID(issue.id)
-      xml.ID(@id)
-      xml.Name(issue.subject)
-      xml.Notes(issue.description)
-      xml.CreateDate(issue.created_on.to_s(:ms_xml))
-      xml.Priority(issue.priority_id)
-      xml.Start(issue.start_date.to_time.to_s(:ms_xml)) if issue.start_date
-      if issue.due_date
-        xml.Finish(issue.due_date.to_time.to_s(:ms_xml))
-      elsif due_date
-        xml.Finish(due_date.to_time.to_s(:ms_xml))
+      @used_issues[struct.issue.id] = true
+      xml.UID(struct.issue.id)
+      xml.ID(struct.tid)
+      xml.Name(struct.issue.subject)
+      xml.Notes(struct.issue.description)
+      xml.CreateDate(struct.issue.created_on.to_s(:ms_xml))
+      xml.Priority(struct.issue.priority_id)
+      xml.Start(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
+      if struct.issue.due_date
+        xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml))
+      elsif struct.due_date
+        xml.Finish(struct.due_date.to_time.to_s(:ms_xml))
       end
       xml.FixedCostAccrual("3")
       xml.ConstraintType("4")
-      xml.ConstraintDate(issue.start_date.to_time.to_s(:ms_xml)) if issue.start_date
+      xml.ConstraintDate(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
       #If the issue is parent: summary, critical and rollup = 1, if not = 0
-      parent = is_parent(issue.id) ? 1 : 0
+      parent = is_parent(struct.issue.id) ? 1 : 0
       xml.Summary(parent)
       xml.Critical(parent)
       xml.Rollup(parent)
@@ -305,14 +326,14 @@ class LoaderController < ApplicationController
       #If it is a main task => WBS = id, outlineNumber = id, outlinelevel = 1
       #If not, we have to get the outlinelevel
 
-      outlinelevel = under_version ? 2 : 1
-      while issue.parent_id != nil
-        issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
-        outlinelevel += 1
-      end
-      xml.WBS(@id)
-      xml.OutlineNumber(@id)
-      xml.OutlineLevel(outlinelevel)
+#      outlinelevel = under_version ? 2 : 1
+#      while struct.issue.parent_id != nil
+#        issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
+#        outlinelevel += 1
+#      end
+      xml.WBS(struct.tid)
+      xml.OutlineNumber(struct.outline_number)
+      xml.OutlineLevel(struct.outline_level)
     end
 #    issues = @project.issues.find(:all, :order => "start_date, id", :conditions => ["parent_id = ?", issue.id])
 #    issues.each { |sub_issue| write_task(xml, sub_issue, due_date, under_version) }
