@@ -244,7 +244,7 @@ class LoaderController < ApplicationController
           xml.Resource do
             xml.UID(resource.user_id)
             xml.ID(resource.id)
-            xml.Name(resource.name)
+            xml.Name(resource.user.login)
             xml.Type("1")
             xml.IsNull("0")
           end
