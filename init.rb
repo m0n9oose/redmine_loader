@@ -4,6 +4,7 @@ require_dependency 'loader'
 
 ActionDispatch::Callbacks.to_prepare do
   Mailer.__send__(:include, LoaderMailer)
+  IssueObserver.__send__(:include, LoaderIssueObserver)
 end
 
 Redmine::Plugin.register :redmine_loader do

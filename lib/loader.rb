@@ -53,7 +53,7 @@ class Loader
           destination_issue = Issue.find(:first, :conditions => ["project_id = ? AND id = ?", project.id, source_issue.uid]) || Issue.new
           destination_issue.tracker_id = final_tracker.id
           destination_issue.category_id = category_entry.try(:id)
-          destination_issue.subject = source_issue.title.slice(0, 255) # Max length of this field is 255
+          destination_issue.subject = source_issue.title.slice(0, 246) + '_imported' # Max length of this field is 255
           destination_issue.estimated_hours = source_issue.duration
           destination_issue.project_id = project.id
           destination_issue.author_id = user.id
