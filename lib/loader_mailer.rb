@@ -4,8 +4,9 @@ module LoaderMailer
   end
 
   module ClassMethods
-    def notify_about_import(user, project, imported)
+    def notify_about_import(user, project, imported, date)
       redmine_headers 'Project' => project.identifier
+      @issues_url = url_for(:controller => 'issues', :action => 'index', :set_filter => 1, :author_id => user.id, :created_on => date, :sort => 'due_date:asc')
       @issues = imported
       @project = project
 

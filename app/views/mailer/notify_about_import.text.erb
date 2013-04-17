@@ -1,9 +1,9 @@
 Congrats, your tasks
 
   <% @issues.each do |issue| -%>
-    * <%= h("#{issue.tracker_name}") %>: <%=h issue.title %></li>
+    * Tracker: <%= h("#{issue.tracker_name}") %> / Issue title: <%=h issue.title %>
   <% end -%>
 
 were successfully imported to project <%= @project.name %>.
 
-You can find it <%= link_to 'here', project_issues_url(@project)%>.
+You can find it here <%= @issues_url %>.

@@ -104,7 +104,7 @@ class LoaderController < ApplicationController
       tasks.each do |taskinfo|
         index = taskinfo[0].to_i
         task = taskinfo[1]
-        struct = OpenStruct.new
+        struct = Task.new
         struct.uid = task[:uid]
         struct.title = task[:title]
         struct.level = task[:level]
@@ -150,6 +150,8 @@ class LoaderController < ApplicationController
       default_tracker_name = Setting.plugin_redmine_loader['tracker']
       default_tracker = Tracker.find(:first, :conditions => ["name = ?", default_tracker_name])
       default_tracker_id = default_tracker.id
+      user = User.current
+      date = Date.today.strftime
 
       flash[:error] = l(:no_valid_default_tracker) unless default_tracker_id
 
@@ -162,11 +164,11 @@ class LoaderController < ApplicationController
       # Right, good to go! Do the import.
       begin
         if to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
-          Loader.import_tasks(to_import, @project)
+          Loader.import_tasks(to_import, @project, user, false)
           flash[:notice] = 'Tasks imported'
           redirect_to project_issues_path(@project)
         else
-          Loader.delay.import_tasks(to_import, @project, true, User.current)
+          to_import.each_slice(30).to_a.each { |batch| Loader.delay.import_tasks(batch, @project, user, true, date) }
           flash[:notice] = 'Your tasks being imported'
           render :action => :new
         end
@@ -279,12 +281,12 @@ class LoaderController < ApplicationController
       internal_id = 0
       grouped_issues.each do |issue|
         internal_id += 1
-        struct = OpenStruct.new
+        struct = Task.new
         struct.issue = issue
-        struct.outline_level = issue.child? ? 2 : 1
+        struct.outlinelevel = issue.child? ? 2 : 1
         struct.tid = issues.index(issue)
-        parent_outline = @nested_issues.select{ |struct| struct.issue == issue.parent }.first.try(:outline_number)
-        struct.outline_number = issue.child? ? "#{parent_outline}#{'.' + internal_id.to_s}" : issues.index(issue)
+        parent_outline = @nested_issues.select{ |struct| struct.issue == issue.parent }.first.try(:outlinenumber)
+        struct.outlinenumber = issue.child? ? "#{parent_outline}#{'.' + internal_id.to_s}" : issues.index(issue)
         @nested_issues << struct
       end
     end
@@ -397,7 +399,7 @@ class LoaderController < ApplicationController
     doc.each_element('Project/Tasks/Task') do |task|
       begin
         logger.debug "Project/Tasks/Task found"
-        struct = OpenStruct.new
+        struct = Task.new
         struct.level = task.get_elements('OutlineLevel')[0].try { |e| e.text.to_i }
         struct.outlinenumber = task.get_elements('OutlineNumber')[0].try { |e| e.text.strip }
 

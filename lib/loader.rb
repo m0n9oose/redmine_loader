@@ -17,9 +17,9 @@ class TaskImport
 end
 
 
-class Loader < ActiveRecord::Base
+class Loader
 
- def self.import_tasks(to_import, project, notify=nil, user=nil)
+ def self.import_tasks(to_import, project, user, notify=nil, date=nil)
 
     # We're going to keep track of new issue ID's to make dependencies work later
     uidToIssueIdMap = {}
@@ -56,7 +56,7 @@ class Loader < ActiveRecord::Base
           destination_issue.subject = source_issue.title.slice(0, 255) # Max length of this field is 255
           destination_issue.estimated_hours = source_issue.duration
           destination_issue.project_id = project.id
-          destination_issue.author_id = User.current.id
+          destination_issue.author_id = user.id
           destination_issue.lock_version = 0
           destination_issue.done_ratio = source_issue.try(:percentcomplete)
           destination_issue.start_date = source_issue.try(:start)
@@ -139,7 +139,7 @@ class Loader < ActiveRecord::Base
       end
     end
 
-    Mailer.notify_about_import(user, project, to_import).deliver if notify
+    Mailer.notify_about_import(user, project, to_import, date).deliver if notify
 
   end
 end
