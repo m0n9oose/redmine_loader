@@ -2,7 +2,7 @@ Congrats, your tasks
 
 <ul>
   <% @issues.each do |issue| -%>
-    <li>Tracker: <%= h("#{issue.tracker_name}") %> / Issue title: <%=h issue.title %></li>
+    <li>Tracker: <%= h("#{issue[:tracker_name]}") %> / Issue title: <%=h issue[:title] %></li>
   <% end -%>
 </ul>
 

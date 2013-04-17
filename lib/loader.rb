@@ -16,10 +16,9 @@ class TaskImport
   attr_accessor :tasks, :project_id, :new_categories
 end
 
-
 class Loader
 
- def self.import_tasks(to_import, project, user, notify=nil, date=nil)
+ def self.import_tasks(to_import, project, user)
 
     # We're going to keep track of new issue ID's to make dependencies work later
     uidToIssueIdMap = {}
@@ -138,8 +137,5 @@ class Loader
         end
       end
     end
-
-    Mailer.notify_about_import(user, project, to_import, date).deliver if notify
-
   end
 end

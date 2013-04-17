@@ -164,11 +164,15 @@ class LoaderController < ApplicationController
       # Right, good to go! Do the import.
       begin
         if to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
-          Loader.import_tasks(to_import, @project, user, false)
+          Loader.import_tasks(to_import, @project, user)
           flash[:notice] = 'Tasks imported'
           redirect_to project_issues_path(@project, :set_filter => 1, :author_id => user.id, :created_on => date)
         else
-          to_import.each_slice(30).to_a.each { |batch| Loader.delay.import_tasks(batch, @project, user, true, date) }
+          to_import.each_slice(30).to_a.each do |batch|
+            Loader.delay.import_tasks(batch, @project, user) # slice issues array to few batches, because psych can't process array bigger than 65536
+          end
+          issues = to_import.map { |issue| {:title => issue.title, :tracker_name => issue.tracker_name} }
+          Mailer.delay.notify_about_import(user, @project, issues, date) # send notification that import finished
           flash[:notice] = 'Your tasks being imported'
           render :action => :new
         end
@@ -334,8 +338,8 @@ class LoaderController < ApplicationController
 #        outlinelevel += 1
 #      end
       xml.WBS(struct.tid)
-      xml.OutlineNumber(struct.outline_number)
-      xml.OutlineLevel(struct.outline_level)
+      xml.OutlineNumber(struct.outlinenumber)
+      xml.OutlineLevel(struct.outlinelevel)
     end
 #    issues = @project.issues.find(:all, :order => "start_date, id", :conditions => ["parent_id = ?", issue.id])
 #    issues.each { |sub_issue| write_task(xml, sub_issue, due_date, under_version) }
