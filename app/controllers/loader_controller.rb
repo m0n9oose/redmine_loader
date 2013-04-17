@@ -166,7 +166,7 @@ class LoaderController < ApplicationController
         if to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
           Loader.import_tasks(to_import, @project, user, false)
           flash[:notice] = 'Tasks imported'
-          redirect_to project_issues_path(@project)
+          redirect_to project_issues_path(@project, :set_filter => 1, :author_id => user.id, :created_on => date)
         else
           to_import.each_slice(30).to_a.each { |batch| Loader.delay.import_tasks(batch, @project, user, true, date) }
           flash[:notice] = 'Your tasks being imported'
