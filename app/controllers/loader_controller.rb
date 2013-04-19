@@ -310,8 +310,8 @@ class LoaderController < ApplicationController
       xml.Start(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
       if struct.issue.due_date
         xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml))
-      elsif struct.due_date
-        xml.Finish(struct.due_date.to_time.to_s(:ms_xml))
+      elsif struct.issue.due_date
+        xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml))
       end
       xml.FixedCostAccrual("3")
       xml.ConstraintType("4")
