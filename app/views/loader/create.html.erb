@@ -51,7 +51,7 @@
           <%= user_selector("import[tasks][#{ index }][assigned_to]", @project, task.assigned_to).html_safe %>
         </td>
         <td>
-          <%= h(task.priority) %>
+          <%= priority_selector("import[tasks][#{ index }][priority]", task.priority).html_safe %>
         </td>
         <td>
           <%= hidden_field_tag("import[tasks][#{ index }][predecessors]", h(task.predecessors.join(', '))) %>

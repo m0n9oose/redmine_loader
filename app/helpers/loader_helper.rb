@@ -128,6 +128,24 @@ module LoaderHelper
     return output
   end
 
+  def priority_selector(field_id, task_priority)
+    priority_name = case task_priority
+               when 0..200 then 'Minimal'
+               when 201..400 then 'Low'
+               when 401..600 then 'Normal'
+               when 601..800 then 'High'
+               when 801..1000 then 'Immediate'
+               end
+    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
+    IssuePriority.active.each do |priority|
+      output << "<option value=\"" + priority.id.to_s + "\""
+      output << " selected='selected' " if priority.name == priority_name
+      output << " >" + priority.name.capitalize + "</option>"
+    end
+    output << "</select>"
+    return output
+  end
+
   def duplicates_count(document, titles)
     @dupes = 0
     document.tasks.each do |task|
