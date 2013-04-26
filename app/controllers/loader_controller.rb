@@ -114,6 +114,7 @@ class LoaderController < ApplicationController
         struct.duration = task[:duration]
         struct.start = task[:start]
         struct.finish = task[:finish]
+        struct.priority = task[:priority]
         struct.percentcomplete = task[:percentcomplete]
         struct.predecessors = task[:predecessors].split(', ')
         struct.delays = task[:delays].split(', ')
@@ -297,6 +298,17 @@ class LoaderController < ApplicationController
     return @nested_issues
   end
 
+  def get_priority_value(priority_name)
+    value = case priority_name
+            when 'Minimal' then 100
+            when 'Low' then 300
+            when 'Normal' then 500
+            when 'High' then 700
+            when 'Immediate' then 900
+            end
+    return value
+  end
+
   def write_task(xml, struct, due_date=nil, under_version=false)
     return if @used_issues.has_key?(struct.issue.id)
     xml.Task do
@@ -306,7 +318,7 @@ class LoaderController < ApplicationController
       xml.Name(struct.issue.subject)
       xml.Notes(struct.issue.description)
       xml.CreateDate(struct.issue.created_on.to_s(:ms_xml))
-      xml.Priority(struct.issue.priority_id)
+      xml.Priority(get_priority_value(struct.issue.priority.name))
       xml.Start(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
       if struct.issue.due_date
         xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml))

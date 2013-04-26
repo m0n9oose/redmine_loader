@@ -51,6 +51,7 @@ class Loader
         if source_issue.milestone.to_i == 0
           destination_issue = Issue.find(:first, :conditions => ["project_id = ? AND id = ?", project.id, source_issue.uid]) || Issue.new
           destination_issue.tracker_id = final_tracker.id
+          destination_issue.priority_id = source_issue.priority
           destination_issue.category_id = category_entry.try(:id)
           destination_issue.subject = source_issue.title.slice(0, 246) + '_imported' # Max length of this field is 255
           destination_issue.estimated_hours = source_issue.duration
