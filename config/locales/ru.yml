@@ -24,7 +24,7 @@ ru:
   no_valid_default_tracker: Не установлен трекер по умолчанию. Обратитесь к Системному Администратору.
   tasks_read_successfully: Чтение задач выполнено успешно. Выберите задачи для импорта.
   no_tasks_found: В файле не обнаружено задач
-  failed_read: 'Failed to read file: '
+  failed_read: 'Невозможно прочесть файл: '
   choose_file_warning: Пожалуйста, выберите файл, прежде чем переходить к анализу задач.
   unable_import: 'Не удалось импортировать задач: '
   imported_successfully: 'Успешно импортировано задач: '

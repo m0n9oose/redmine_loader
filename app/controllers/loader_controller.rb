@@ -164,8 +164,8 @@ class LoaderController < ApplicationController
       begin
         if to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
           Loader.import_tasks(to_import, @project, user)
-          flash[:notice] = 'Tasks imported'
-          redirect_to project_issues_path(@project, :set_filter => 1, :author_id => user.id, :created_on => date)
+          flash[:notice] = l(:imported_successfully) + to_import.size.to_s
+          redirect_to project_issues_path(@project)
         else
           to_import.each_slice(30).to_a.each do |batch|
             Loader.delay.import_tasks(batch, @project, user) # slice issues array to few batches, because psych can't process array bigger than 65536

@@ -36,20 +36,20 @@ class Loader
         puts "DEBUG: Issue to be imported: #{source_issue.inspect}"
         if source_issue.category.present?
           puts "DEBUG: Search category id by name: #{source_issue.category}"
-          category_entry = IssueCategory.find(:first, :conditions => { :project_id => project.id, :name => source_issue.category })
+          category_entry = IssueCategory.find_by_name_and_project_id(source_issue.category, project.id)
           puts "DEBUG: Category found: #{category_entry.inspect}"
         end
 
         if source_issue.tracker_name.present?
           puts "DEBUG: Search tracker id by name: #{source_issue.tracker_name}"
-          final_tracker = Tracker.find(:first, :conditions => ["name = ?", source_issue.tracker_name])
+          final_tracker = Tracker.find_by_name(source_issue.tracker_name)
           puts "DEBUG: Tracker found: #{final_tracker.inspect}"
         else
           final_tracker = default_tracker
         end
 
-        if source_issue.milestone.to_i == 0
-          destination_issue = Issue.find(:first, :conditions => ["project_id = ? AND id = ?", project.id, source_issue.uid]) || Issue.new
+        unless source_issue.milestone.to_i == 1
+          destination_issue = Issue.find_by_id_and_project_id(source_issue.uid, project.id) || Issue.new
           destination_issue.tracker_id = final_tracker.id
           destination_issue.priority_id = source_issue.priority
           destination_issue.category_id = category_entry.try(:id)
@@ -78,7 +78,7 @@ class Loader
           outlineNumberToIssueIDMap[source_issue.outlinenumber] = destination_issue.id
         else
           #If the issue is a milestone we save it as a Redmine Version
-          version_record = Version.find(:first, :conditions => ["project_id = ? AND id = ?", project.id, source_issue.uid]) || Version.new
+          version_record = Version.find_by_id_and_project_id(source_issue.uid, project.id) || Version.new
           version_record.name = source_issue.title.slice(0, 59)#maximum is 60 characters
           version_record.description = source_issue.try(:notes)
           version_record.effective_date = source_issue.start
@@ -97,8 +97,9 @@ class Loader
     # outlineNumberToIssueIDMap to get the parent's ID
     Issue.transaction do
       to_import.each do |source_issue|
-        destination_issue = Issue.find(:first, :conditions => ["project_id = ? AND id = ?", project.id, uidToIssueIdMap[source_issue.uid]])
-        destination_issue.parent_issue_id = outlineNumberToIssueIDMap[source_issue.outnum] if destination_issue
+        if destination_issue = Issue.find_by_id_and_project_id(uidToIssueIdMap[source_issue.uid], project.id)
+          destination_issue.parent_issue_id = outlineNumberToIssueIDMap[source_issue.outnum]
+        end
         destination_issue.try(:save!)
       end
     end
@@ -116,7 +117,7 @@ class Loader
           # Parent is being imported also. Go ahead and add the association
           if uidToIssueIdMap.has_key?(parent_uid)
             # If the issue is not a milestone we have to create the issue relation
-            if source_issue.milestone.to_i == 0
+            unless source_issue.milestone.to_i == 1
               relation_record = IssueRelation.new do |i|
                 i.issue_from_id = uidToIssueIdMap[parent_uid]
                 i.issue_to_id = uidToIssueIdMap[source_issue.uid]
@@ -130,7 +131,7 @@ class Loader
               relation_record.save!
             else
               # If the issue is a milestone we have to assign the predecessor to the version
-              destination_issue = Issue.find(:first, :conditions => ["project_id = ? AND id = ?", project.id, uidToIssueIdMap[parent_uid]])
+              destination_issue = Issue.find_by_id_and_project_id(uidToIssueIdMap[parent_uid], project.id)
               destination_issue.fixed_version_id = uidToVersionIdMap[source_issue.uid]
               destination_issue.save!
             end
