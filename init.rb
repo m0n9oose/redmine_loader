@@ -15,9 +15,9 @@ Redmine::Plugin.register :redmine_loader do
 
   description 'Basic project file loader'
 
-  version '0.0.12'
+  version '0.1'
 
-  requires_redmine :version_or_higher => '0.9.2'
+  requires_redmine :version_or_higher => '2.3.0'
 
   # Commented out because it refused to work in development mode
   default_tracker_name = 'Features' #Tracker.find_by_id( 1 ).name

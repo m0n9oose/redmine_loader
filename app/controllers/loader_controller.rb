@@ -11,8 +11,7 @@ class LoaderController < ApplicationController
   require 'zlib'
   require 'ostruct'
   require 'tempfile'
-  require 'rexml/document'
-  require 'builder/xmlmarkup'
+  require 'nokogiri'
 
   # This allows to update the existing task in Redmine from MS Project
   ActiveRecord::Base.lock_optimistically = false
@@ -51,11 +50,11 @@ class LoaderController < ApplicationController
 
         xmlfile = Zlib::GzipReader.new xmlfile unless byte == '<'[0]
         File.open(xmlfile, 'r') do |readxml|
-          xmldoc = REXML::Document.new(readxml)
+          xmldoc = Nokogiri::XML::Document.parse(readxml).remove_namespaces!
           @import.tasks, @import.new_categories = get_tasks_from_xml(xmldoc)
         end
 
-        if @import.try { |e| e.tasks.any? }
+        if @import.try(:tasks).any?
           flash[:notice] = l(:tasks_read_successfully)
           render :action => :create
         else
@@ -149,12 +148,11 @@ class LoaderController < ApplicationController
       #
       # Tracker
       default_tracker_name = Setting.plugin_redmine_loader['tracker']
-      default_tracker = Tracker.find(:first, :conditions => ["name = ?", default_tracker_name])
-      default_tracker_id = default_tracker.id
+      default_tracker = Tracker.where(:name => default_tracker_name)
       user = User.current
       date = Date.today.strftime
 
-      flash[:error] = l(:no_valid_default_tracker) unless default_tracker_id
+      flash[:error] = l(:no_valid_default_tracker) unless default_tracker
 
       # Bail out if we have errors to report.
       unless flash[:error].nil?
@@ -174,7 +172,7 @@ class LoaderController < ApplicationController
           end
           issues = to_import.map { |issue| {:title => issue.title, :tracker_name => issue.tracker_name} }
           Mailer.delay.notify_about_import(user, @project, issues, date) # send notification that import finished
-          flash[:notice] = 'Your tasks being imported'
+          flash[:notice] = t(:your_tasks_being_imported)
           render :action => :new
         end
       rescue => error
@@ -187,7 +185,7 @@ class LoaderController < ApplicationController
 
   def export
     xml, name = generate_xml
-    hijack_response(xml, name)
+    send_data xml, :filename => name, :disposition => 'attachment'
   end
 
   private
@@ -205,78 +203,79 @@ class LoaderController < ApplicationController
   end
 
   def generate_xml
-
     @id = 0
     request_from = Rails.application.routes.recognize_path(request.referrer)
     get_sorted_query unless request_from[:controller] =~ /loader/
-    xml = Builder::XmlMarkup.new(:target => out_string = "", :indent => 2)
-    @used_issues = {}
-    xml.Project do
-      xml.Tasks do
-        xml.Task do
-          xml.UID("0")
-          xml.ID("0")
-          xml.ConstraintType("0")
-          xml.OutlineNumber("0")
-          xml.OutlineLevel("0")
-          xml.Name(@project.name)
-          xml.Type("1")
-          xml.CreateDate(@project.created_on.to_s(:ms_xml))
-        end
 
-        if @query
-          determine_nesting(@query_issues)
-          @nested_issues.each { |struct| write_task(xml, struct) }
-        else
-          # adding version sorting
-          versions = @project.versions.find(:all, :order => "effective_date ASC, id")
-          versions.each do |version|
-          # Uncomment below if you want to export all related with issues project versions
-            # write_version(xml, version)
-            issues = @project.issues.find(:all, :conditions => ["fixed_version_id = ?",version.id], :order => "parent_id, start_date, id" )
+    export = Nokogiri::XML::Builder.new(:encoding => 'UTF-8') do |xml|
+      @used_issues = {}
+      xml.Project {
+        xml.Tasks {
+          xml.Task {
+            xml.UID "0"
+            xml.ID "0"
+            xml.ConstraintType "0"
+            xml.OutlineNumber "0"
+            xml.OutlineLevel "0"
+            xml.Name @project.name
+            xml.Type "1"
+            xml.CreateDate @project.created_on.to_s(:ms_xml)
+          }
+
+          if @query
+            determine_nesting @query_issues
+            @nested_issues.each { |struct| write_task(xml, struct) }
+          else
+            # adding version sorting
+            versions = @project.versions.order("effective_date ASC, id")
+            versions.each do |version|
+            # Uncomment below if you want to export all related with issues project versions
+              # write_version(xml, version)
+              issues = @project.issues.where(:fixed_version_id => version.id).order("parent_id, start_date, id")
+              determine_nesting(issues)
+              @nested_issues.each { |issue| write_task(xml, issue, version.effective_date, true) }
+            end
+            issues = @project.issues.where(:fixed_version_id => nil).order("parent_id, start_date, id")
             determine_nesting(issues)
-            @nested_issues.each { |issue| write_task(xml, issue, version.effective_date, true) }
+            @nested_issues.each { |issue| write_task(xml, issue) }
           end
-          issues = @project.issues.find(:all, :order => "parent_id, start_date, id", :conditions => ["fixed_version_id = ?", nil])
-          determine_nesting(issues)
-          @nested_issues.each { |issue| write_task(xml, issue) }
-        end
-      end
-      xml.Resources do
-        xml.Resource do
-          xml.UID("0")
-          xml.ID("0")
-          xml.Type("1")
-          xml.IsNull("0")
-        end
-        resources = @project.members.find(:all)
-        resources.each do |resource|
-          xml.Resource do
-            xml.UID(resource.user_id)
-            xml.ID(resource.id)
-            xml.Name(resource.user.login)
-            xml.Type("1")
-            xml.IsNull("0")
+        }
+        xml.Resources {
+          xml.Resource {
+            xml.UID "0"
+            xml.ID "0"
+            xml.Type "1"
+            xml.IsNull "0"
+          }
+          resources = @project.members
+          resources.each do |resource|
+            xml.Resource {
+              xml.UID resource.user_id
+              xml.ID resource.id
+              xml.Name resource.user.login
+              xml.Type "1"
+              xml.IsNull "0"
+            }
           end
-        end
-      end
-      # We do not assign the issue to any resource, just set the done_ratio
-      xml.Assignments do
-        source_issues = @query ? @query_issues : @project.issues
-        source_issues.each do |issue|
-          xml.Assignment do
-            xml.UID(issue.id)
-            xml.TaskUID(issue.id)
-            xml.ResourceUID(issue.assigned_to_id)
-            xml.PercentWorkComplete(issue.done_ratio)
+        }
+        # We do not assign the issue to any resource, just set the done_ratio
+        xml.Assignments {
+          source_issues = @query ? @query_issues : @project.issues
+          source_issues.each do |issue|
+            xml.Assignment {
+              xml.UID issue.id
+              xml.TaskUID issue.id
+              xml.ResourceUID issue.assigned_to_id
+              xml.PercentWorkComplete issue.done_ratio
+            }
           end
-        end
-      end
+        }
+      }
     end
 
     #To save the created xml with the name of the project
-    projectname = "#{@project.name}-#{Time.now.strftime("%Y-%m-%d-%H-%M")}.xml"
-    return out_string, projectname
+    filename = "#{@project.name}-#{Time.now.strftime("%Y-%m-%d-%H-%M")}.xml"
+    return export.to_xml, filename
   end
 
   def determine_nesting(issues)
@@ -311,7 +310,7 @@ class LoaderController < ApplicationController
 
   def write_task(xml, struct, due_date=nil, under_version=false)
     return if @used_issues.has_key?(struct.issue.id)
-    xml.Task do
+    xml.Task {
       @used_issues[struct.issue.id] = true
       xml.UID(struct.issue.id)
       xml.ID(struct.tid)
@@ -352,13 +351,13 @@ class LoaderController < ApplicationController
       xml.WBS(struct.tid)
       xml.OutlineNumber(struct.outlinenumber)
       xml.OutlineLevel(struct.outlinelevel)
-    end
+    }
 #    issues = @project.issues.find(:all, :order => "start_date, id", :conditions => ["parent_id = ?", issue.id])
 #    issues.each { |sub_issue| write_task(xml, sub_issue, due_date, under_version) }
   end
 
   def write_version(xml, version)
-    xml.Task do
+    xml.Task {
       @id += 1
       xml.UID(version.id)
       xml.ID(@id)
@@ -384,16 +383,12 @@ class LoaderController < ApplicationController
       xml.WBS(@id)
       xml.OutlineNumber(@id)
       xml.OutlineLevel(1)
-    end
-  end
-
-  def hijack_response(out_data, projectname)
-    send_data(out_data, :type => "text/xml", :filename => projectname)
+    }
   end
 
   # Look if the issue is parent of another issue or not
   def is_parent(issue_id)
-    return Issue.find(:first, :conditions => ["parent_id = ?", issue_id])
+    return Issue.find(issue_id).ancestors.any?
   end
 
   # Obtain a task list from the given parsed XML data (a REXML document).
@@ -402,57 +397,55 @@ class LoaderController < ApplicationController
 
     # Extract details of every task into a flat array
     tasks = []
+    @unprocessed_task_ids = []
 
     logger.debug "DEBUG: BEGIN get_tasks_from_xml"
 
     tracker_alias = Setting.plugin_redmine_loader['tracker_alias']
     tracker_field_id = nil
 
-    doc.each_element "Project/ExtendedAttributes/ExtendedAttribute[Alias='#{tracker_alias}']/FieldID" do |ext_attr|
+    doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{tracker_alias}']/FieldID").each do |ext_attr|
       tracker_field_id = ext_attr.text.to_i
     end
 
-    doc.each_element('Project/Tasks/Task') do |task|
+    doc.xpath('Project/Tasks/Task').each do |task|
       begin
         logger.debug "Project/Tasks/Task found"
         struct = Task.new
-        struct.level = task.get_elements('OutlineLevel')[0].try { |e| e.text.to_i }
-        struct.outlinenumber = task.get_elements('OutlineNumber')[0].try { |e| e.text.strip }
+        struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
+        struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
 
-        auxString = struct.outlinenumber
+        auxString = struct.try(:outlinenumber)
 
         index = auxString.rindex('.')
         if index
           index -= 1
           struct.outnum = auxString[0..index]
         end
-        struct.tid = task.get_elements('ID')[0].try { |e| e.text.to_i }
-        struct.uid = task.get_elements('UID')[0].try { |e| e.text.to_i }
-        struct.title = task.get_elements('Name')[0].try { |e| e.text.strip }
-        struct.start = task.get_elements('Start')[0].try { |e| e.text.split("T")[0] }
-        struct.finish = task.get_elements('Finish')[0].try { |e| e.text.split("T")[0] }
-        struct.priority = task.get_elements('Priority')[0].try { |e| e.text.to_i }
+        struct.tid = task.at('ID').try(:text).try(:to_i)
+        struct.uid = task.at('UID').try(:text).try(:to_i)
+        struct.title = task.at('Name').try(:text).try(:strip)
+        struct.start = task.at('Start').try(:text).try{|t| t.split("T")[0]}
+        struct.finish = task.at('Finish').try(:text).try{|t| t.split("T")[0]}
+        struct.priority = task.at('Priority').try(:text)
 
-        s1 = task.get_elements('Start')[0].try { |e| e.text.strip }
-        s2 = task.get_elements('Finish')[0].try { |e| e.text.strip }
-
-        task.each_element("ExtendedAttribute[FieldID='#{tracker_field_id}']/Value") do |tracker_value|
+        task.xpath("ExtendedAttribute[FieldID='#{tracker_field_id}']/Value").each do |tracker_value|
           struct.tracker_name = tracker_value.text
         end
 
+        #s1 = task.at('Start')[0].try(:text).try(:strip)
+        #s2 = task.at('Finish')[0].try(:text).try(:strip)
         # If the start date and the finish date are the same it is a milestone
         # struct.milestone = s1 == s2 ? 1 : 0
 
-        struct.percentcomplete = task.get_elements('PercentComplete')[0].try { |e| e.text.to_i }
-        struct.notes = task.get_elements('Notes')[0].try { |e| e.text.try(:strip) }
+        struct.percentcomplete = task.at('PercentComplete').try(:text).try(:to_i)
+        struct.notes = task.at('Notes').try(:text).try(:strip)
         struct.predecessors = []
         struct.delays = []
-        task.each_element('PredecessorLink') do |predecessor|
-        begin
-          struct.predecessors.push(predecessor.get_elements('PredecessorUID')[0].try { |e| e.text.to_i })
-          struct.delays.push(predecessor.get_elements('LinkLag')[0].text.try { |e| e.to_i })
+        task.xpath('PredecessorLink').each do |predecessor|
+          struct.predecessors.push(predecessor.at('PredecessorUID').try(:text).try(:to_i))
+          struct.delays.push(predecessor.at('LinkLag').try(:text).try(:to_i))
         end
-      end
 
       tasks.push(struct)
 
@@ -460,6 +453,7 @@ class LoaderController < ApplicationController
         # Ignore errors; they tend to indicate malformed tasks, or at least,
         # XML file task entries that we do not understand.
         logger.debug "DEBUG: Unrecovered error getting tasks: #{error}"
+        @unprocessed_task_ids.push task.at('ID').try(:text).try(:to_i)
       end
     end
 
@@ -489,7 +483,7 @@ class LoaderController < ApplicationController
       #  all_categories.push(category) # Keep track of all categories so we know which ones might need to be added
         #tasks[ index ] = "Prueba"
       if task.level == 0
-        category = task.try { |e| e.title.strip.gsub(/:$/, '') } # Kill any trailing :'s which are common in some project files
+        category = task.try(:title).try(:strip).try(:gsub, /:$/, '') # Kill any trailing :'s which are common in some project files
         all_categories.push(category) # Keep track of all categories so we know which ones might need to be added
         tasks[index] = nil
       else
@@ -518,12 +512,12 @@ class LoaderController < ApplicationController
 
     real_tasks = []
 
-    #doc.each_element( 'Project/Assignments/Assignment' ) do | as |
-    #  task_uid = as.get_elements( 'TaskUID' )[ 0 ].text.to_i
+    #doc.xpath( 'Project/Assignments/Assignment' ) do | as |
+    #  task_uid = as.at( 'TaskUID' )[ 0 ].text.to_i
     #  task = uid_tasks[ task_uid ] unless task_uid.nil?
     #  next if ( task.nil? )
 
-    #  work = as.get_elements( 'Work' )[ 0 ].text
+    #  work = as.at( 'Work' )[ 0 ].text
       # Parse the "Work" string: "PT<num>H<num>M<num>S", but with some
       # leniency to allow any data before or after the H/M/S stuff.
     #  hours = 0
@@ -557,11 +551,11 @@ class LoaderController < ApplicationController
 
     #TODO: Are there any form to improve performance of this method ?
     resource_by_user = get_bind_resource_users(doc)
-    doc.each_element('Project/Assignments/Assignment') do |as|
-      task_uid = as.get_elements('TaskUID').first.text.to_i
+    doc.xpath('Project/Assignments/Assignment').each do |as|
+      task_uid = as.at('TaskUID').text.to_i
       task = uid_tasks[task_uid] if task_uid
       next if task.nil?
-      resource_id = as.get_elements('ResourceUID').first.text.to_i
+      resource_id = as.at('ResourceUID').text.to_i
       next if resource_id == NOT_USER_ASSIGNED
       task.assigned_to = resource_by_user[resource_id]
     end
@@ -589,11 +583,11 @@ class LoaderController < ApplicationController
 
   def get_resources(doc)
     resources = {}
-    doc.each_element('Project/Resources/Resource') do |resource|
-      resource_uid = resource.get_elements('UID').first.text.to_i
-      resource_name_element = resource.get_elements('Name').first
+    doc.xpath('Project/Resources/Resource').each do |resource|
+      resource_uid = resource.at('UID').try(:text).try(:to_i)
+      resource_name_element = resource.at('Name').try(:text)
       next if resource_name_element.nil?
-      resources[resource_uid] = resource_name_element.text
+      resources[resource_uid] = resource_name_element
     end
     return resources
   end

@@ -10,33 +10,6 @@
 ########################################################################
 
 module LoaderHelper
-
-  # Generate a project selector for the project to which imported tasks will
-  # be assigned. HTML is output which is suitable for inclusion in a table
-  # cell or other similar container. Pass the form object being used for the
-  # task import view.
-
-  def project_selector(form)
-    project_list = Project.find(:all, :conditions => Project.visible_by(User.current))
-
-    unless project_list.empty?
-      output  = "        &nbsp;Project to which all tasks will be assigned:\n"
-      output  << "<select id=\"import_project_id\" name=\"import[project_id]\"><optgroup label=\"Your Projects\"> "
-
-      project_list.each do |project|
-        output = output + "<option value=\"" + project.id.to_s + "\">" + project.to_s + "</option>"
-      end
-      output << "</optgroup>"
-      output << "</select>"
-
-    else
-      output  = "        There are no projects defined. You can create new\n"
-      output << "        projects #{ link_to( 'here', '/project/new' ) }."
-    end
-
-    return output
-  end
-
   # Generate a category selector to which imported tasks will
   # be assigned. HTML is output which is suitable for inclusion in a table
   # cell or other similar container. Pass the form object being used for the
@@ -45,7 +18,7 @@ module LoaderHelper
   def category_selector(field_id, project, all_new_categories, requested_category)
 
     # First populate the selection box with all the existing categories from this project
-    category_list = IssueCategory.find(:all, :conditions => { :project_id => project })
+    category_list = IssueCategory.where(:project_id => project)
 
     output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\"> "
     # Empty entry
@@ -129,7 +102,7 @@ module LoaderHelper
   end
 
   def priority_selector(field_id, task_priority)
-    priority_name = case task_priority
+    priority_name = case task_priority.to_i
                when 0..200 then 'Minimal'
                when 201..400 then 'Low'
                when 401..600 then 'Normal'

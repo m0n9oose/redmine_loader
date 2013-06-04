@@ -18,7 +18,7 @@ end
 
 class Loader
 
- def self.import_tasks(to_import, project, user)
+  def self.import_tasks(to_import, project, user)
 
     # We're going to keep track of new issue ID's to make dependencies work later
     uidToIssueIdMap = {}

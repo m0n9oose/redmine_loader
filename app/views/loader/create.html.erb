@@ -68,6 +68,9 @@
       <%= content_tag(:td, link_to(l(:back), {:controller => 'loader', :action => 'new'})) %>
     </tr>
   </table>
+  <% if @unprocessed_task_ids.any? %>
+    <p align='center'>Tasks with IDs: <%= @unprocessed_task_ids.join(' ,') %> cannot be processed. Please, check it.</p>
+  <% end %>
   <% if @dupes > 0 %>
     <p align="center" colspan="5"><%= l(:warning_text).html_safe %></p>
   <% end %>
