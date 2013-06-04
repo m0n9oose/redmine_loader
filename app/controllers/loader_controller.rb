@@ -319,16 +319,12 @@ class LoaderController < ApplicationController
       xml.CreateDate(struct.issue.created_on.to_s(:ms_xml))
       xml.Priority(get_priority_value(struct.issue.priority.name))
       xml.Start(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
-      if struct.issue.due_date
-        xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml))
-      elsif struct.issue.due_date
-        xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml))
-      end
+      xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml)) if struct.issue.due_date
       xml.FixedCostAccrual("3")
       xml.ConstraintType("4")
       xml.ConstraintDate(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
       #If the issue is parent: summary, critical and rollup = 1, if not = 0
-      parent = is_parent(struct.issue.id) ? 1 : 0
+      parent = Issue.find(struct.issue.id).leaf? ? 0 : 1
       xml.Summary(parent)
       xml.Critical(parent)
       xml.Rollup(parent)
@@ -384,11 +380,6 @@ class LoaderController < ApplicationController
       xml.OutlineNumber(@id)
       xml.OutlineLevel(1)
     }
-  end
-
-  # Look if the issue is parent of another issue or not
-  def is_parent(issue_id)
-    return Issue.find(issue_id).ancestors.any?
   end
 
   # Obtain a task list from the given parsed XML data (a REXML document).
