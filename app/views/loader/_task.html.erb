@@ -1,0 +1,42 @@
+<%= content_tag :tr, :class => cycle('even', 'odd'), :align => 'center', :valign => 'top' do -%>
+  <td>
+    <%= check_box_tag("import[tasks][#{index}][import]", '1', true, {:class => 'checkbox'}) %>
+  </td>
+  <td>
+    <%= hidden_field_tag "import[tasks][#{index}][uid]", h(task.uid) %>
+    <%= hidden_field_tag "import[tasks][#{index}][level]", h(task.level) %>
+    <%= hidden_field_tag "import[tasks][#{index}][outnum]", h(task.outnum) %>
+    <%= hidden_field_tag "import[tasks][#{index}][outlinenumber]", h(task.outlinenumber) %>
+    <%= hidden_field_tag "import[tasks][#{index}][duration]", h(task.duration) %>
+    <%= hidden_field_tag "import[tasks][#{index}][notes]", h(task.notes) %>
+    <%= hidden_field_tag "import[tasks][#{index}][delays]", h(task.delays.join(', ')) %>
+    <%= hidden_field_tag "import[tasks][#{index}][milestone]", h(task.milestone) %>
+    <%= hidden_field_tag "import[tasks][#{index}][predecessors]", h(task.predecessors.join(', ')) %>
+    <%= h(task.uid) %>
+  </td>
+  <td align="left" class="task_title">
+    <%= (titles[task.title] == true ? '&nbsp;&nbsp;' : "<span class=\"dup\">#{ titles[task.title] }</span>").html_safe %>
+    <%= text_field_tag "import[tasks][#{index}][title]", h(task.title), {:size => 50, :class => 'task_title'} %>
+  </td>
+  <td align="left">
+    <%= loader_tracker_select_tag @project, index %>
+  </td>
+  <td align="left">
+    <%= text_field_tag "import[tasks][#{index}][start]", h(task.start), {:type => 'date', :size => 10} %>
+  </td>
+  <td align="left">
+    <%= text_field_tag "import[tasks][#{index}][finish]", h(task.finish), {:type => 'date', :size => 10} %>
+  </td>
+  <td align="left">
+    <%= loader_percent_select_tag task.percentcomplete, index %>
+  </td>
+  <td>
+    <%= loader_user_select_tag @project, task.assigned_to, index %>
+  </td>
+  <td>
+    <%= loader_priority_select_tag task.priority, index %>
+  </td>
+  <td>
+    <%= h(task.predecessors.join(', ')) %>
+  </td>
+<% end %>

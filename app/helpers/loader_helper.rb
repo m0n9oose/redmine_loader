@@ -10,98 +10,20 @@
 ########################################################################
 
 module LoaderHelper
-  # Generate a category selector to which imported tasks will
-  # be assigned. HTML is output which is suitable for inclusion in a table
-  # cell or other similar container. Pass the form object being used for the
-  # task import view.
-
-  def category_selector(field_id, project, all_new_categories, requested_category)
-
-    # First populate the selection box with all the existing categories from this project
-    category_list = IssueCategory.where(:project_id => project)
-
-    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\"> "
-    # Empty entry
-    output << "<option value=\"\"></option>"
-    output << "<optgroup label=\"Existing Categories\"> "
-
-    category_list.each do |category|
-      if category.to_s == requested_category
-        output << "<option value=\"" + category.to_s + "\" selected=\"selected\">" + category.to_s + "</option>"
-      else
-        output << "<option value=\"" + category.to_s + "\">" + category.to_s + "</option>"
-      end
-    end
-
-    output << "</optgroup>"
-
-    # Now add any new categories that we found in the project file
-    #output << "<optgroup label=\"New Categories\"> "
-
-    #all_new_categories.each do | category_name |
-    #  if ( not category_list.include?(category_name) )
-    #    if ( category_name == requested_category )
-    #      output << "<option value=\"" + category_name + "\" selected=\"selected\">" + category_name + "</option>"
-    #    else
-    #      output << "<option value=\"" + category_name + "\">" + category_name + "</option>"
-    #    end
-    #  end
-    #end
-
-    #output << "</optgroup>"
-    output << "</select>"
-    return output
+  def loader_user_select_tag(project, assigned_to, index)
+    select_tag "import[tasks][#{index}][assigned_to]", options_from_collection_for_select(project.assignable_users, 'id', 'name', :selected => assigned_to ), { :include_blank => true }
   end
 
-  # Generate a user selector to which imported tasks will
-  # be assigned. HTML is output which is suitable for inclusion in a table
-  # cell or other similar container. Pass the form object being used for the
-  # task import view.
-
-  def user_selector(field_id, project, assigned_to)
-    # First populate the selection box with all the existing categories from this project
-    user_list = project.assignable_users
-    user_list.compact!
-    user_list = user_list.uniq
-    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
-
-    # Empty entry
-    output << "<option value=\"\"></option>"
-    # Add all the users
-    user_list = user_list.sort {|a, b| a.firstname + a.lastname <=> b.firstname + b.lastname}
-    user_list.each do |user_entry|
-      output << "<option value=\"" + user_entry.id.to_s + "\""
-      output << " selected='selected' " if assigned_to && assigned_to == user_entry.id
-      output << " >" + user_entry.firstname + " " + user_entry.lastname + "</option>"
-    end
-    output << "</select>"
-    return output
+  def loader_tracker_select_tag(project, index)
+    tracker = Setting.plugin_redmine_loader['tracker_id']
+    select_tag "import[tasks][#{index}][tracker_id]", options_from_collection_for_select(project.trackers, :id, :name, :selected => tracker)
   end
 
-  def tracker_selector(field_id, project)
-    tracker_list = project.trackers
-    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
-    tracker_list.each do |tracker|
-      output << "<option value=\"" + tracker.name.to_s + "\""
-      output << " selected='selected' " if Setting.plugin_redmine_loader['tracker'].downcase == tracker.name.to_s.downcase
-      output << " >" + tracker.name.capitalize + "</option>"
-    end
-    output << "</select>"
-    return output
+  def loader_percent_select_tag(task_percent, index)
+    select_tag "import[tasks][#{index}][percentcomplete]", options_for_select((0..10).to_a.map {|p| (p*10)}, task_percent.to_i)
   end
 
-  def percent_selector(field_id, task_percent)
-    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
-    ((0..10).to_a.map {|p| p*10 }).each do |percent|
-      output << "<option value=\"" + percent.to_s + "\""
-      output << " selected='selected' " if task_percent == percent
-      output << " >" + percent.to_s + "</option>"
-    end
-    output << "</select>"
-    return output
-  end
-
-  def priority_selector(field_id, task_priority)
+  def loader_priority_select_tag(task_priority, index)
     priority_name = case task_priority.to_i
                when 0..200 then 'Minimal'
                when 201..400 then 'Low'
@@ -109,14 +31,7 @@ module LoaderHelper
                when 601..800 then 'High'
                when 801..1000 then 'Immediate'
                end
-    output = "<select id=\"" + field_id + "\" name=\"" + field_id + "\">"
-    IssuePriority.active.each do |priority|
-      output << "<option value=\"" + priority.id.to_s + "\""
-      output << " selected='selected' " if priority.name == priority_name
-      output << " >" + priority.name.capitalize + "</option>"
-    end
-    output << "</select>"
-    return output
+    select_tag "import[tasks][#{index}][priority]", options_from_collection_for_select(IssuePriority.active, :id, :name, :selected => priority_name)
   end
 
   def duplicates_count(document, titles)
