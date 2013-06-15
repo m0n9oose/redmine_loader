@@ -18,6 +18,6 @@ class Task < Struct.new(:assigned_to,
                         :start,
                         :tid,
                         :title,
-                        :tracker_name,
+                        :tracker_id,
                         :uid)
 end

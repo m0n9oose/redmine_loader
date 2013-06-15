@@ -20,11 +20,9 @@ Redmine::Plugin.register :redmine_loader do
   requires_redmine :version_or_higher => '2.3.0'
 
   # Commented out because it refused to work in development mode
-  default_tracker_name = 'Features' #Tracker.find_by_id( 1 ).name
   default_tracker_alias = 'Tracker'
 
   settings :default => {
-	:tracker => default_tracker_name,
 	:tracker_alias => default_tracker_alias,
 	:instant_import_tasks => 10
   }, :partial => 'settings/loader_settings'

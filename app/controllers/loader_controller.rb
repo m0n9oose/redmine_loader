@@ -122,7 +122,7 @@ class LoaderController < ApplicationController
         struct.parent_id = task[:parent_id]
         struct.notes = task[:notes]
         struct.milestone = task[:milestone]
-        struct.tracker_name = task[:tracker_name]
+        struct.tracker_id = task[:tracker_id]
         @import.tasks[index] = struct
         to_import[index] = struct if task[:import] == '1'
       end
@@ -147,17 +147,17 @@ class LoaderController < ApplicationController
       # Get defaults to use for all tasks - sure there is a nicer ruby way, but this works
       #
       # Tracker
-      default_tracker_name = Setting.plugin_redmine_loader['tracker']
-      default_tracker = Tracker.where(:name => default_tracker_name)
+      default_tracker_id = Setting.plugin_redmine_loader['tracker_id']
       user = User.current
       date = Date.today.strftime
 
-      flash[:error] = l(:no_valid_default_tracker) unless default_tracker
+      flash[:error] = l(:no_valid_default_tracker) unless default_tracker_id
 
       # Bail out if we have errors to report.
       unless flash[:error].nil?
         render :action => :new
         flash.delete :error
+        return
       end
 
       # Right, good to go! Do the import.
@@ -170,7 +170,7 @@ class LoaderController < ApplicationController
           to_import.each_slice(30).to_a.each do |batch|
             Loader.delay.import_tasks(batch, @project, user) # slice issues array to few batches, because psych can't process array bigger than 65536
           end
-          issues = to_import.map { |issue| {:title => issue.title, :tracker_name => issue.tracker_name} }
+          issues = to_import.map { |issue| {:title => issue.title, :tracker_id => issue.tracker_id} }
           Mailer.delay.notify_about_import(user, @project, issues, date) # send notification that import finished
           flash[:notice] = t(:your_tasks_being_imported)
           render :action => :new
@@ -179,6 +179,7 @@ class LoaderController < ApplicationController
         flash[:error] = l(:unable_import) + error.to_s
         logger.debug "DEBUG: Unable to import tasks: #{ error }"
         render :action => :new
+        return
       end
     end
   end

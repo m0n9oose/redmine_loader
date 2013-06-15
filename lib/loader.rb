@@ -40,17 +40,12 @@ class Loader
           puts "DEBUG: Category found: #{category_entry.inspect}"
         end
 
-        if source_issue.tracker_name.present?
-          puts "DEBUG: Search tracker id by name: #{source_issue.tracker_name}"
-          final_tracker = Tracker.find_by_name(source_issue.tracker_name)
-          puts "DEBUG: Tracker found: #{final_tracker.inspect}"
-        else
-          final_tracker = default_tracker
-        end
+        default_tracker_id = Setting.plugin_redmine_loader['tracker_id']
+        final_tracker_id = source_issue.tracker_id ? source_issue.tracker_id : default_tracker_id
 
         unless source_issue.milestone.to_i == 1
-          destination_issue = Issue.find_by_id_and_project_id(source_issue.uid, project.id) || Issue.new
-          destination_issue.tracker_id = final_tracker.id
+          destination_issue = Issue.where("id = ? AND project_id = ?", source_issue.uid, project.id).first_or_initialize
+          destination_issue.tracker_id = final_tracker_id
           destination_issue.priority_id = source_issue.priority
           destination_issue.category_id = category_entry.try(:id)
           destination_issue.subject = source_issue.title.slice(0, 246) + '_imported' # Max length of this field is 255
