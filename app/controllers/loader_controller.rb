@@ -281,7 +281,7 @@ class LoaderController < ApplicationController
 
   def determine_nesting(issues)
     @nested_issues = []
-    grouped = issues.group_by{ |issue| issue.level }.sort_by{ |key| key }
+    grouped = issues.group_by(&:level).sort_by{ |key| key }
     grouped.each do |level, grouped_issues|
       internal_id = 0
       grouped_issues.each do |issue|
@@ -319,11 +319,11 @@ class LoaderController < ApplicationController
       xml.Notes(struct.issue.description)
       xml.CreateDate(struct.issue.created_on.to_s(:ms_xml))
       xml.Priority(get_priority_value(struct.issue.priority.name))
-      xml.Start(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
-      xml.Finish(struct.issue.due_date.to_time.to_s(:ms_xml)) if struct.issue.due_date
-      xml.FixedCostAccrual("3")
-      xml.ConstraintType("4")
-      xml.ConstraintDate(struct.issue.start_date.to_time.to_s(:ms_xml)) if struct.issue.start_date
+      xml.Start(struct.issue.try { |e| e.start_date.to_time.to_s(:ms_xml) })
+      xml.Finish(struct.issue.try { |e| e.due_date.to_time.to_s(:ms_xml) })
+      xml.FixedCostAccrual 3
+      xml.ConstraintType 4
+      xml.ConstraintDate(struct.issue.try { |e| e.start_date.to_time.to_s(:ms_xml) })
       #If the issue is parent: summary, critical and rollup = 1, if not = 0
       parent = Issue.find(struct.issue.id).leaf? ? 0 : 1
       xml.Summary(parent)
