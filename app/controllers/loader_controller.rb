@@ -64,10 +64,6 @@ class LoaderController < ApplicationController
 
       rescue => error
 
-        # REXML errors can be huge, including a full backtrace. It can cause
-        # session cookie overflow and we don't want the user to see it. Cut
-        # the message off at the first newline.
-
         lines = error.message.split("\n")
         flash[:error] = l(:failed_read) + lines.to_s
         redirect_to :back
@@ -283,15 +279,15 @@ class LoaderController < ApplicationController
     @nested_issues = []
     grouped = issues.group_by(&:level).sort_by{ |key| key }
     grouped.each do |level, grouped_issues|
-      internal_id = 0
-      grouped_issues.each do |issue|
-        internal_id += 1
+      grouped_issues.each_with_index do |issue, index|
         struct = Task.new
         struct.issue = issue
-        struct.outlinelevel = issue.child? ? 2 : 1
-        struct.tid = issues.index(issue)
-        parent_outline = @nested_issues.select{ |struct| struct.issue == issue.parent }.first.try(:outlinenumber)
-        struct.outlinenumber = issue.child? ? "#{parent_outline}#{'.' + internal_id.to_s}" : issues.index(issue)
+        if child = issue.child?
+          parent = issue.parent
+          parent_outlinenumber = @nested_issues.detect{ |struct| struct.issue == parent }.try(:outlinenumber)
+        end
+        struct.outlinenumber = child ? parent_outlinenumber.to_s + '.' + (index + 1).to_s : issues.index(issue)
+        struct.outlinelevel = issue.level + 1
         @nested_issues << struct
       end
     end
@@ -319,11 +315,11 @@ class LoaderController < ApplicationController
       xml.Notes(struct.issue.description)
       xml.CreateDate(struct.issue.created_on.to_s(:ms_xml))
       xml.Priority(get_priority_value(struct.issue.priority.name))
-      xml.Start(struct.issue.try { |e| e.start_date.to_time.to_s(:ms_xml) })
-      xml.Finish(struct.issue.try { |e| e.due_date.to_time.to_s(:ms_xml) })
-      xml.FixedCostAccrual 3
-      xml.ConstraintType 4
-      xml.ConstraintDate(struct.issue.try { |e| e.start_date.to_time.to_s(:ms_xml) })
+      xml.Start(struct.issue.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
+      xml.Finish(struct.issue.try(:due_date).try(:to_time).try(:to_s, :ms_xml))
+      xml.FixedCostAccrual "3"
+      xml.ConstraintType "4"
+      xml.ConstraintDate(struct.issue.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
       #If the issue is parent: summary, critical and rollup = 1, if not = 0
       parent = Issue.find(struct.issue.id).leaf? ? 0 : 1
       xml.Summary(parent)
@@ -345,7 +341,7 @@ class LoaderController < ApplicationController
 #        issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
 #        outlinelevel += 1
 #      end
-      xml.WBS(struct.tid)
+      xml.WBS(struct.outlinenumber)
       xml.OutlineNumber(struct.outlinenumber)
       xml.OutlineLevel(struct.outlinelevel)
     }
@@ -367,7 +363,7 @@ class LoaderController < ApplicationController
       end
       xml.FixedCostAccrual("3")
       xml.ConstraintType("4")
-      xml.ConstraintDate(version.effective_date.to_time.to_s(:ms_xml)) if version.effective_date
+      xml.ConstraintDate(version.try(:effective_date).try(:to_time).try(:to_s, :ms_xml))
       xml.Summary("1")
       xml.Critical("1")
       xml.Rollup("1")
@@ -379,7 +375,7 @@ class LoaderController < ApplicationController
       #end
       xml.WBS(@id)
       xml.OutlineNumber(@id)
-      xml.OutlineLevel(1)
+      xml.OutlineLevel("1")
     }
   end
 
@@ -449,11 +445,9 @@ class LoaderController < ApplicationController
       end
     end
 
-    # Sort the array by ID. By sorting the array this way, the order
-    # order will match the task order displayed to the user in the
-    # project editor software which generated the XML file.
+    # Sort the array by UID
 
-    tasks = tasks.sort_by { |task| task.uid }
+    tasks = tasks.sort_by(&:uid)
 
     # Step through the sorted tasks. Each time we find one where the
     # *next* task has an outline level greater than the current task,
@@ -464,8 +458,7 @@ class LoaderController < ApplicationController
     all_categories = []
     category = ''
 
-    tasks.each_index do |index|
-      task = tasks[index]
+    tasks.each_with_index do |task, index|
       next_task = tasks[index + 1]
 
       # Instead of deleting the sumary tasks I only delete the task 0 (the project)
@@ -477,15 +470,14 @@ class LoaderController < ApplicationController
       if task.level == 0
         category = task.try(:title).try(:strip).try(:gsub, /:$/, '') # Kill any trailing :'s which are common in some project files
         all_categories.push(category) # Keep track of all categories so we know which ones might need to be added
-        tasks[index] = nil
+        task = nil
       else
         task.category = category
       end
     end
 
     # Remove any 'nil' items we created above
-    tasks.compact!
-    tasks = tasks.uniq
+    tasks = tasks.compact.uniq.drop(1)
 
     # Now create a secondary array, where the UID of any given task is
     # the array index at which it can be found. This is just to make
@@ -540,13 +532,11 @@ class LoaderController < ApplicationController
   NOT_USER_ASSIGNED = -65535
 
   def set_assignment_to_task(doc, uid_tasks)
-
-    #TODO: Are there any form to improve performance of this method ?
     resource_by_user = get_bind_resource_users(doc)
     doc.xpath('Project/Assignments/Assignment').each do |as|
       task_uid = as.at('TaskUID').text.to_i
       task = uid_tasks[task_uid] if task_uid
-      next if task.nil?
+      next unless task
       resource_id = as.at('ResourceUID').text.to_i
       next if resource_id == NOT_USER_ASSIGNED
       task.assigned_to = resource_by_user[resource_id]
@@ -556,12 +546,11 @@ class LoaderController < ApplicationController
   def get_bind_resource_users(doc)
     resources = get_resources(doc)
     users_list = get_user_list_for_project
-    users_list.sort_by { |user| user.login }
     resource_by_user = []
     resources.each do |uid, name|
-      user_found = users_list.find_all { |user| user.login == name }
-      next if user_found.first.nil?
-      resource_by_user[uid] = user_found.first.id
+      user_found = users_list.detect { |user| user.login == name }
+      next unless user_found
+      resource_by_user[uid] = user_found.id
     end
     return resource_by_user
   end
@@ -578,7 +567,7 @@ class LoaderController < ApplicationController
     doc.xpath('Project/Resources/Resource').each do |resource|
       resource_uid = resource.at('UID').try(:text).try(:to_i)
       resource_name_element = resource.at('Name').try(:text)
-      next if resource_name_element.nil?
+      next unless resource_name_element
       resources[resource_uid] = resource_name_element
     end
     return resources

@@ -44,7 +44,9 @@ class Loader
         final_tracker_id = source_issue.tracker_id ? source_issue.tracker_id : default_tracker_id
 
         unless source_issue.milestone.to_i == 1
-          destination_issue = Issue.where("id = ? AND project_id = ?", source_issue.uid, project.id).first_or_initialize
+          # Search exists issue by uid + project id, then by title + project id, and if nothing found - initialize new
+          # Be careful, it destructive
+          destination_issue = Issue.where("id = ? OR subject = ? AND project_id = ?", source_issue.uid, source_issue.title, project.id).first_or_initialize
           destination_issue.tracker_id = final_tracker_id
           destination_issue.priority_id = source_issue.priority
           destination_issue.category_id = category_entry.try(:id)
