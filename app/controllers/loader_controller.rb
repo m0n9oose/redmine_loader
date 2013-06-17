@@ -222,20 +222,14 @@ class LoaderController < ApplicationController
           if @query
             determine_nesting @query_issues
             @nested_issues.each { |struct| write_task(xml, struct) }
+            Version.where(:id => @query_issues.map(&:fixed_version_id).uniq).each { |version| write_version(xml, version) }
           else
-            # adding version sorting
-            versions = @project.versions.order("effective_date ASC, id")
-            versions.each do |version|
-            # Uncomment below if you want to export all related with issues project versions
-              # write_version(xml, version)
-              issues = @project.issues.where(:fixed_version_id => version.id).order("parent_id, start_date, id")
-              determine_nesting(issues)
-              @nested_issues.each { |issue| write_task(xml, issue, version.effective_date, true) }
-            end
-            issues = @project.issues.where(:fixed_version_id => nil).order("parent_id, start_date, id")
+            @project.versions.each { |version| write_version(xml, version) }
+            issues = @project.issues.visible
             determine_nesting(issues)
             @nested_issues.each { |issue| write_task(xml, issue) }
           end
+
         }
         xml.Resources {
           xml.Resource {
@@ -252,10 +246,10 @@ class LoaderController < ApplicationController
               xml.Name resource.user.login
               xml.Type "1"
               xml.IsNull "0"
+              xml.MaxUnits "1.0"
             }
           end
         }
-        # We do not assign the issue to any resource, just set the done_ratio
         xml.Assignments {
           source_issues = @query ? @query_issues : @project.issues
           source_issues.each do |issue|
@@ -264,6 +258,7 @@ class LoaderController < ApplicationController
               xml.TaskUID issue.id
               xml.ResourceUID issue.assigned_to_id
               xml.PercentWorkComplete issue.done_ratio
+              xml.Units "1"
             }
           end
         }
@@ -327,11 +322,12 @@ class LoaderController < ApplicationController
       xml.Rollup(parent)
       xml.Type(parent)
 
-      #xml.PredecessorLink do
-      #  IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id = ? AND relation_type = 'precedes'", issue.id]).select do |ir|
-      #    xml.PredecessorUID(ir.issue_from_id)
-      #  end
-      #end
+      xml.PredecessorLink {
+        xml.PredecessorUID struct.issue.fixed_version_id
+#        IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id = ? AND relation_type = 'precedes'", issue.id]).select do |ir|
+#          xml.PredecessorUID(ir.issue_from_id)
+#        end
+      }
 
       #If it is a main task => WBS = id, outlineNumber = id, outlinelevel = 1
       #If not, we have to get the outlinelevel
@@ -361,6 +357,7 @@ class LoaderController < ApplicationController
         xml.Start(version.effective_date.to_time.to_s(:ms_xml))
         xml.Finish(version.effective_date.to_time.to_s(:ms_xml))
       end
+      xml.Milestone "1"
       xml.FixedCostAccrual("3")
       xml.ConstraintType("4")
       xml.ConstraintDate(version.try(:effective_date).try(:to_time).try(:to_s, :ms_xml))
@@ -421,11 +418,7 @@ class LoaderController < ApplicationController
           struct.tracker_name = tracker_value.text
         end
 
-        #s1 = task.at('Start')[0].try(:text).try(:strip)
-        #s2 = task.at('Finish')[0].try(:text).try(:strip)
-        # If the start date and the finish date are the same it is a milestone
-        # struct.milestone = s1 == s2 ? 1 : 0
-
+        struct.milestone = task.at('Milestone').try(:text).try(:to_i)
         struct.percentcomplete = task.at('PercentComplete').try(:text).try(:to_i)
         struct.notes = task.at('Notes').try(:text).try(:strip)
         struct.predecessors = []
