@@ -1,5 +1,6 @@
 $(document).ready(function(){
   $('.dup').parent().parent().each(function() {this.style.backgroundColor = "rgb(255, 190, 190)"});
+  $(".other-formats")[0].style.display = "none"
 });
 
 function toggleIssuesSelection(el) {

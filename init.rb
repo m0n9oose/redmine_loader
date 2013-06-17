@@ -1,10 +1,12 @@
 require 'redmine'
 
 require_dependency 'loader'
+require_dependency 'views_issues_index_bottom_hook'
 
 ActionDispatch::Callbacks.to_prepare do
   Mailer.__send__(:include, LoaderMailer)
   IssueObserver.__send__(:include, LoaderIssueObserver)
+  Redmine::Views::OtherFormatsBuilder.__send__(:include, LoaderOtherFormatsBuilder)
 end
 
 Redmine::Plugin.register :redmine_loader do

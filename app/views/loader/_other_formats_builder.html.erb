@@ -1,0 +1,7 @@
+<%= javascript_include_tag 'loader.js', :plugin => 'redmine_loader' %>
+<% other_formats_links do |f| %>
+  <%= f.link_to 'Atom', :url => params.merge(:key => User.current.rss_key) %>
+  <%= f.link_to 'CSV', :url => params, :onclick => "showModal('csv-export-options', '330px'); return false;" %>
+  <%= f.link_to 'PDF', :url => params %>
+  <%= f.link_to 'XML', :query_id => @query.id if params[:project_id] %>
+<% end %>
