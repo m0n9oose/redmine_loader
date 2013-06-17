@@ -32,6 +32,7 @@ Redmine::Plugin.register :redmine_loader do
 
   project_module :project_xml_importer do
     permission :import_issues_from_xml, :loader => [:new, :create]
+    permission :export_issues_to_xml, :loader => :export
   end
 
   menu :project_menu, :loader, { :controller => 'loader', :action => 'new' },

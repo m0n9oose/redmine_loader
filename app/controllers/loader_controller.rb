@@ -3,7 +3,7 @@ class LoaderController < ApplicationController
   unloadable
 
   before_filter :find_project, :only => [:new, :create, :export]
-  before_filter :authorize, :only => [:new, :create]
+  before_filter :authorize
 
   include QueriesHelper
   include SortHelper

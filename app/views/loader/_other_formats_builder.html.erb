@@ -3,5 +3,5 @@
   <%= f.link_to 'Atom', :url => params.merge(:key => User.current.rss_key) %>
   <%= f.link_to 'CSV', :url => params, :onclick => "showModal('csv-export-options', '330px'); return false;" %>
   <%= f.link_to 'PDF', :url => params %>
-  <%= f.link_to 'XML', :query_id => @query.id if params[:project_id] %>
+  <%= f.link_to 'XML', :query_id => @query.id if params[:project_id] && User.current.allowed_to?(:export_issues_to_xml, @project) %>
 <% end %>
