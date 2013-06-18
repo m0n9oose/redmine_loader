@@ -2,8 +2,8 @@ class LoaderController < ApplicationController
 
   unloadable
 
-  before_filter :find_project, :only => [:new, :create, :export]
-  before_filter :authorize
+  before_filter :find_project, :only => [:analyze, :new, :create, :export]
+  before_filter :authorize, :except => :analyze
 
   include QueriesHelper
   include SortHelper
@@ -16,34 +16,14 @@ class LoaderController < ApplicationController
   # This allows to update the existing task in Redmine from MS Project
   ActiveRecord::Base.lock_optimistically = false
 
-  # Set up the import view. If there is no task data, this will consist of
-  # a file entry field and nothing else. If there is parsed file data (a
-  # preliminary task list), then this is included too.
-
   def new
   end
 
-  # Take the task data from the 'new' view form and 'create' an "import
-  # session"; that is, create real Task objects based on the task list and
-  # add them to the database, wrapped in a single transaction so that the
-  # whole operation can be unwound in case of error.
-
-  def create
-
-    # Set up a new TaskImport session object and read the XML file details
-
-    xmlfile = params[:import][:xmlfile].try(:tempfile)
-    @import = TaskImport.new
-
-    if xmlfile
-
-      # The user selected a file to upload, so process it
-
-      begin
-
-        # We assume XML files always begin with "<" in the first byte and
-        # if that's missing then it's GZip compressed. That's true in the
-        # limited case of project files.
+  def analyze
+    begin
+      xmlfile = params[:import][:xmlfile].try(:tempfile)
+      if xmlfile
+        @import = TaskImport.new
 
         byte = xmlfile.getc
         xmlfile.rewind
@@ -54,130 +34,59 @@ class LoaderController < ApplicationController
           @import.tasks, @import.new_categories = get_tasks_from_xml(xmldoc)
         end
 
-        if @import.try(:tasks).any?
-          flash[:notice] = l(:tasks_read_successfully)
-          render :action => :create
-        else
-          flash[:error] = l(:no_tasks_found)
-          redirect_to :back
-        end
-
-      rescue => error
-
-        lines = error.message.split("\n")
-        flash[:error] = l(:failed_read) + lines.to_s
-        redirect_to :back
-      end
-    else
-
-      # No file was specified. If there are no tasks either, complain.
-
-      tasks = params[:import][:tasks]
-
-      if tasks.nil?
+        flash[:notice] = l(:tasks_read_successfully)
+      else
         flash[:error] = l(:choose_file_warning)
-        redirect_to :back
-        return
       end
-
-      # Compile the form submission's task list into something that the
-      # TaskImport object understands.
-      #
-      # Since we'll rebuild the tasks array inside @import, we can render the
-      # 'new' view again and have the same task list presented to the user in
-      # case of error.
-
-      @import.tasks = []
-      @import.new_categories = []
-      to_import = []
-
-      # Due to the way the form is constructed, 'task' will be a 2-element
-      # array where the first element contains a string version of the index
-      # at which we should store the entry and the second element contains
-      # the hash describing the task itself.
-
-      tasks.each do |taskinfo|
-        index = taskinfo[0].to_i
-        task = taskinfo[1]
-        struct = Task.new
-        struct.uid = task[:uid]
-        struct.title = task[:title]
-        struct.level = task[:level]
-        struct.outlinenumber = task[:outlinenumber]
-        struct.outnum = task[:outnum]
-        struct.code = task[:code]
-        struct.duration = task[:duration]
-        struct.start = task[:start]
-        struct.finish = task[:finish]
-        struct.priority = task[:priority]
-        struct.percentcomplete = task[:percentcomplete]
-        struct.predecessors = task[:predecessors].split(', ')
-        struct.delays = task[:delays].split(', ')
-        struct.category = task[:category]
-        struct.assigned_to = task[:assigned_to]
-        struct.parent_id = task[:parent_id]
-        struct.notes = task[:notes]
-        struct.milestone = task[:milestone]
-        struct.tracker_id = task[:tracker_id]
-        @import.tasks[index] = struct
-        to_import[index] = struct if task[:import] == '1'
-      end
-
-      to_import.compact!
-
-      # The "import" button in the form causes token "import_selected" to be
-      # set in the params hash. The "analyse" button causes nothing to be set.
-      # If the user has clicked on the "analyse" button but we've reached this
-      # point, then they didn't choose a new file yet *did* have a task list
-      # available. That's strange, so raise an error.
-      #
-      # On the other hand, if the 'import' button *was* used but no tasks were
-      # selected for error, raise a different error.
-
-      if params[:import].nil?
-        flash[:error] = l(:choose_file_warning)
-      elsif to_import.empty?
-        flash[:error] = l(:no_tasks_were_selected)
-      end
-
-      # Get defaults to use for all tasks - sure there is a nicer ruby way, but this works
-      #
-      # Tracker
-      default_tracker_id = Setting.plugin_redmine_loader['tracker_id']
-      user = User.current
-      date = Date.today.strftime
-
-      flash[:error] = l(:no_valid_default_tracker) unless default_tracker_id
-
-      # Bail out if we have errors to report.
-      unless flash[:error].nil?
-        render :action => :new
-        flash.delete :error
-        return
-      end
-
-      # Right, good to go! Do the import.
-      begin
-        if to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
-          Loader.import_tasks(to_import, @project, user)
-          flash[:notice] = l(:imported_successfully) + to_import.size.to_s
-          redirect_to project_issues_path(@project)
-        else
-          to_import.each_slice(30).to_a.each do |batch|
-            Loader.delay.import_tasks(batch, @project, user) # slice issues array to few batches, because psych can't process array bigger than 65536
-          end
-          issues = to_import.map { |issue| {:title => issue.title, :tracker_id => issue.tracker_id} }
-          Mailer.delay.notify_about_import(user, @project, issues, date) # send notification that import finished
-          flash[:notice] = t(:your_tasks_being_imported)
-          render :action => :new
-        end
-      rescue => error
-        flash[:error] = l(:unable_import) + error.to_s
-        logger.debug "DEBUG: Unable to import tasks: #{ error }"
-        render :action => :new
-        return
-      end
+    rescue => error
+      lines = error.message.split("\n")
+      flash[:error] = l(:failed_read) + lines.to_s
     end
+    redirect_to new_project_loader_path if flash[:error]
+  end
+
+  def create
+    tasks = params[:import][:tasks]
+
+    flash[:error] = l(:choose_file_warning) unless tasks
+
+    to_import = tasks.select { |index, task_info| task_info[:import] == '1' }
+    tasks_to_import = Loader.build_tasks_to_import(to_import)
+
+    flash[:error] = l(:no_tasks_were_selected) if tasks_to_import.empty?
+
+    default_tracker_id = Setting.plugin_redmine_loader['tracker_id']
+    user = User.current
+    date = Date.today.strftime
+
+    flash[:error] = l(:no_valid_default_tracker) unless default_tracker_id
+
+    if flash[:error]
+      redirect_to new_project_loader_path # interrupt if any errors
+      return
+    end
+
+    # Right, good to go! Do the import.
+    begin
+      if tasks_to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
+        Loader.import_tasks(tasks_to_import, @project, user)
+        flash[:notice] = l(:imported_successfully) + tasks_to_import.size.to_s
+        redirect_to project_issues_path(@project)
+        return
+      else
+        to_import.each_slice(30).to_a.each do |batch|
+          Loader.delay.import_tasks(batch, @project, user) # slice issues array to few batches, because psych can't process array bigger than 65536
+        end
+        issues = to_import.map { |issue| {:title => issue.title, :tracker_id => issue.tracker_id} }
+        Mailer.delay.notify_about_import(user, @project, issues, date) # send notification that import finished
+        flash[:notice] = t(:your_tasks_being_imported)
+      end
+    rescue => error
+      flash[:error] = l(:unable_import) + error.to_s
+      logger.debug "DEBUG: Unable to import tasks: #{ error }"
+    end
+
+    redirect_to new_project_loader_path
   end
 
   def export

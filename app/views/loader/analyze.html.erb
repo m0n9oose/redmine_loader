@@ -1,6 +1,6 @@
 <%= javascript_include_tag 'loader.js', :plugin => 'redmine_loader' %>
 <h1><%= l(:import_tasks) %></h1>
-<%= form_for(:import, {:url => {:action => 'create'}, :html => {:id => 'import', :multipart => true}}) do |f| %>
+<%= form_for(:import, {:url => project_loader_path, :html => {:id => 'import', :multipart => true}}) do |f| %>
   <p><%= l(:about_analyzed) %></p>
   <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
     <tr valign="middle" align="center" class="info">

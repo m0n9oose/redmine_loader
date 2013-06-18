@@ -18,6 +18,34 @@ end
 
 class Loader
 
+  def self.build_tasks_to_import to_import
+    tasks_to_import = []
+      to_import.each do |index, task|
+      struct = Task.new
+      struct.uid = task[:uid]
+      struct.title = task[:title]
+      struct.level = task[:level]
+      struct.outlinenumber = task[:outlinenumber]
+      struct.outnum = task[:outnum]
+      struct.code = task[:code]
+      struct.duration = task[:duration]
+      struct.start = task[:start]
+      struct.finish = task[:finish]
+      struct.priority = task[:priority]
+      struct.percentcomplete = task[:percentcomplete]
+      struct.predecessors = task[:predecessors].split(', ')
+      struct.delays = task[:delays].split(', ')
+      struct.category = task[:category]
+      struct.assigned_to = task[:assigned_to]
+      struct.parent_id = task[:parent_id]
+      struct.notes = task[:notes]
+      struct.milestone = task[:milestone]
+      struct.tracker_id = task[:tracker_id]
+      tasks_to_import[index.to_i] = struct
+    end
+    return tasks_to_import
+  end
+
   def self.import_tasks(to_import, project, user)
 
     # We're going to keep track of new issue ID's to make dependencies work later

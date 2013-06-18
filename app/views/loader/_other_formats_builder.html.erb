@@ -1,4 +1,4 @@
-<%= javascript_include_tag 'loader.js', :plugin => 'redmine_loader' %>
+<%= javascript_include_tag 'hide_other_formats_links.js', :plugin => 'redmine_loader' %>
 <% other_formats_links do |f| %>
   <%= f.link_to 'Atom', :url => params.merge(:key => User.current.rss_key) %>
   <%= f.link_to 'CSV', :url => params, :onclick => "showModal('csv-export-options', '330px'); return false;" %>

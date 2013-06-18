@@ -1,21 +1,21 @@
 <%= stylesheet_link_tag 'loader', :plugin => 'redmine_loader' %>
 <div class='left half'>
   <h1><%= l(:import_tasks) %></h1>
-  <%= form_for(:import, {:url => {:action => 'create'}, :html => {:id => 'import', :multipart => true}}) do |f| %>
+  <%= form_for(:import, :url => analyze_project_loader_path, :html => {:id => 'import', :multipart => true}) do |f| %>
     <p><%= l(:about_1) %></p>
     <p><%= l(:about_2) %></p>
     <p><%= l(:about_3) %></p>
     <p><%= l(:about_4) %></p>
     <%= f.file_field 'xmlfile' %>
-    <tr><%= f.submit(l(:analyze), {:name => 'import[analyse]', :disable_with => l(:analyzing)}) %></tr>
-    <%= hidden_field_tag("project_id", "#{@project.id}") %>
+    <tr>
+      <%= f.submit(l(:analyze), {:name => 'import[analyze]', :disable_with => l(:analyzing)}) %>
+    </tr>
   <% end %>
 </div>
 <div class='right half'>
   <h1><%= l(:export_tasks) %></h1>
-  <%= form_for(:import, {:url => {:action => 'export'}, :html => {:id => 'export', :multipart => true}}) do |f| %>
+  <%= form_for(:import, {:url => export_project_loader_path, :method => :get, :html => {:id => 'export', :multipart => true}}) do |f| %>
     <p><%= l(:generate_xml) %></p>
-    <%= hidden_field_tag("project_id", "#{@project.id}") %>
     <%= f.submit(l(:export_issue), {:name => 'export'}) %>
   <% end %>
 </div>
