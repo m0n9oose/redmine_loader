@@ -46,12 +46,11 @@ class LoaderController < ApplicationController
   end
 
   def create
-    tasks = params[:import][:tasks]
+    tasks = params[:import][:tasks].select { |index, task_info| task_info[:import] == '1' }
 
     flash[:error] = l(:choose_file_warning) unless tasks
 
-    to_import = tasks.select { |index, task_info| task_info[:import] == '1' }
-    tasks_to_import = Loader.build_tasks_to_import(to_import)
+    tasks_to_import = Loader.build_tasks_to_import tasks
 
     flash[:error] = l(:no_tasks_were_selected) if tasks_to_import.empty?
 
@@ -70,15 +69,17 @@ class LoaderController < ApplicationController
     begin
       if tasks_to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
         Loader.import_tasks(tasks_to_import, @project, user)
+
         flash[:notice] = l(:imported_successfully) + tasks_to_import.size.to_s
         redirect_to project_issues_path(@project)
         return
       else
-        to_import.each_slice(30).to_a.each do |batch|
-          Loader.delay.import_tasks(batch, @project, user) # slice issues array to few batches, because psych can't process array bigger than 65536
+        # slice issues array to few batches, because psych can't process array bigger than 65536
+        tasks_to_import.each_slice(30).to_a.each do |batch|
+          Loader.delay.import_tasks(batch, @project, user)
         end
-        issues = to_import.map { |issue| {:title => issue.title, :tracker_id => issue.tracker_id} }
-        Mailer.delay.notify_about_import(user, @project, issues, date) # send notification that import finished
+        issues_info = tasks_to_import.map { |issue| {:title => issue.title} }
+        Mailer.delay.notify_about_import(user, @project, date, issues_info) # send notification that import finished
         flash[:notice] = t(:your_tasks_being_imported)
       end
     rescue => error

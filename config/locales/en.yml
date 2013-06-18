@@ -31,3 +31,8 @@ en:
   generate_xml: Generate a XML file to export all our Redmine issues to MS Project.
   warning_text: <strong>Warning!</strong> Some task titles are identical. You need to rename them if importing. If you see any errors - you may have missed one.
   your_tasks_being_imported: Your tasks being imported as soon as possible. You will receive email notification.
+  subject: 'Your tasks were imported to project '
+  congrats: Congrats, your tasks
+  were_imported: were successfully imported to project
+  can_find_html: You can find it %{link}
+  here: here

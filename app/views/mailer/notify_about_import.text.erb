@@ -1,9 +1,9 @@
-Congrats, your tasks
+<%= l(:congrats) %>
 
   <% @issues.each do |issue| -%>
-    * Tracker: <%= h("#{issue[:tracker_name]}") %> / Issue title: <%=h issue[:title] %>
+    #<%= issue[:title] %>
   <% end -%>
 
-were successfully imported to project <%= @project.name %>.
+<%= l(:were_imported) %> <%= @project.name %>.
 
-You can find it here <%= @issues_url %>.
+<%= l(:can_find_html, :link => nil) %><%= l(:here) %> <%= @issues_url %>

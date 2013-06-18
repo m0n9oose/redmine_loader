@@ -1,11 +1,11 @@
-Congrats, your tasks
+<%= t(:congrats) %>
 
 <ul>
   <% @issues.each do |issue| -%>
-    <li>Tracker: <%= h("#{issue[:tracker_name]}") %> / Issue title: <%=h issue[:title] %></li>
+    <li><%=h issue[:title] %></li>
   <% end -%>
 </ul>
 
-were successfully imported to project <%= @project.name %>.
+<%= t(:were_imported) %> <%= link_to_project @project %>.
 <br />
-You can find it <%= link_to 'here', @issues_url %>.
+<%= t(:can_find_html, :link => link_to(t(:here), @issues_url)) %>.

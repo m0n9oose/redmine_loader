@@ -43,7 +43,7 @@ class Loader
       struct.tracker_id = task[:tracker_id]
       tasks_to_import[index.to_i] = struct
     end
-    return tasks_to_import
+    return tasks_to_import.compact.uniq
   end
 
   def self.import_tasks(to_import, project, user)
