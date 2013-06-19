@@ -234,25 +234,12 @@ class LoaderController < ApplicationController
 
       xml.PredecessorLink {
         xml.PredecessorUID struct.issue.fixed_version_id
-#        IssueRelation.find(:all, :include => [:issue_from, :issue_to], :conditions => ["issue_to_id = ? AND relation_type = 'precedes'", issue.id]).select do |ir|
-#          xml.PredecessorUID(ir.issue_from_id)
-#        end
       }
 
-      #If it is a main task => WBS = id, outlineNumber = id, outlinelevel = 1
-      #If not, we have to get the outlinelevel
-
-#      outlinelevel = under_version ? 2 : 1
-#      while struct.issue.parent_id != nil
-#        issue = @project.issues.find(:first, :conditions => ["id = ?", issue.parent_id])
-#        outlinelevel += 1
-#      end
       xml.WBS(struct.outlinenumber)
       xml.OutlineNumber(struct.outlinenumber)
       xml.OutlineLevel(struct.outlinelevel)
     }
-#    issues = @project.issues.find(:all, :order => "start_date, id", :conditions => ["parent_id = ?", issue.id])
-#    issues.each { |sub_issue| write_task(xml, sub_issue, due_date, under_version) }
   end
 
   def write_version(xml, version)
@@ -286,11 +273,10 @@ class LoaderController < ApplicationController
     }
   end
 
-  # Obtain a task list from the given parsed XML data (a REXML document).
-
   def get_tasks_from_xml(doc)
 
     # Extract details of every task into a flat array
+
     tasks = []
     @unprocessed_task_ids = []
 
@@ -348,9 +334,7 @@ class LoaderController < ApplicationController
       end
     end
 
-    # Sort the array by UID
-
-    tasks = tasks.sort_by(&:uid)
+    tasks = tasks.drop(1).compact.uniq.sort_by(&:uid)
 
     # Step through the sorted tasks. Each time we find one where the
     # *next* task has an outline level greater than the current task,
@@ -379,66 +363,21 @@ class LoaderController < ApplicationController
       end
     end
 
-    # Remove any 'nil' items we created above
-    tasks = tasks.compact.uniq.drop(1)
-
-    # Now create a secondary array, where the UID of any given task is
-    # the array index at which it can be found. This is just to make
-    # looking up tasks by UID really easy, rather than faffing around
-    # with "tasks.find { | task | task.uid = <whatever> }".
-
-    uid_tasks = []
-
-    tasks.each { |task| uid_tasks[task.uid] = task }
-
-    # OK, now it's time to parse the assignments into some meaningful
-    # array. These will become our redmine issues. Assignments
-    # which relate to empty elements in "uid_tasks" or which have zero
-    # work are associated with tasks which are either summaries or
-    # milestones. Ignore both types.
-
-    real_tasks = []
-
-    #doc.xpath( 'Project/Assignments/Assignment' ) do | as |
-    #  task_uid = as.at( 'TaskUID' )[ 0 ].text.to_i
-    #  task = uid_tasks[ task_uid ] unless task_uid.nil?
-    #  next if ( task.nil? )
-
-    #  work = as.at( 'Work' )[ 0 ].text
-      # Parse the "Work" string: "PT<num>H<num>M<num>S", but with some
-      # leniency to allow any data before or after the H/M/S stuff.
-    #  hours = 0
-    #  mins = 0
-    #  secs = 0
-
-    #  strs = work.scan(/.*?(\d+)H(\d+)M(\d+)S.*?/).flatten unless work.nil?
-    #  hours, mins, secs = strs.map { | str | str.to_i } unless strs.nil?
-
-      #next if ( hours == 0 and mins == 0 and secs == 0 )
-
-      # Woohoo, real task!
-
-    #  task.duration = ( ( ( hours * 3600 ) + ( mins * 60 ) + secs ) / 3600 ).prec_f
-
-    #  real_tasks.push( task )
-    #end
-    set_assignment_to_task(doc, uid_tasks)
-    logger.debug "DEBUG: Real tasks: #{real_tasks.inspect}"
+    set_assignment_to_task(doc, tasks)
     logger.debug "DEBUG: Tasks: #{tasks.inspect}"
-    real_tasks = tasks if real_tasks.empty?
-    real_tasks = real_tasks.uniq if real_tasks
-    all_categories = all_categories.uniq.sort
+    all_categories = all_categories.uniq
     logger.debug "DEBUG: END get_tasks_from_xml"
-    return real_tasks, all_categories
+    return tasks, all_categories
   end
 
   NOT_USER_ASSIGNED = -65535
 
-  def set_assignment_to_task(doc, uid_tasks)
+  def set_assignment_to_task(doc, tasks)
+    uid_tasks = tasks.map(&:uid)
     resource_by_user = get_bind_resource_users(doc)
     doc.xpath('Project/Assignments/Assignment').each do |as|
       task_uid = as.at('TaskUID').text.to_i
-      task = uid_tasks[task_uid] if task_uid
+      task = tasks.detect { |task| task.uid == task_uid }
       next unless task
       resource_id = as.at('ResourceUID').text.to_i
       next if resource_id == NOT_USER_ASSIGNED
@@ -448,21 +387,14 @@ class LoaderController < ApplicationController
 
   def get_bind_resource_users(doc)
     resources = get_resources(doc)
-    users_list = get_user_list_for_project
-    resource_by_user = []
+    users_list = @project.assignable_users
+    resource_by_user = {}
     resources.each do |uid, name|
       user_found = users_list.detect { |user| user.login == name }
       next unless user_found
       resource_by_user[uid] = user_found.id
     end
     return resource_by_user
-  end
-
-  def get_user_list_for_project
-    user_list = @project.assignable_users
-    user_list.compact!
-    user_list = user_list.uniq
-    return user_list
   end
 
   def get_resources(doc)
