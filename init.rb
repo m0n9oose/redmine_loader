@@ -25,6 +25,7 @@ Redmine::Plugin.register :redmine_loader do
   default_tracker_alias = 'Tracker'
 
   settings :default => {
+	:is_private_by_default => false,
 	:tracker_alias => default_tracker_alias,
 	:instant_import_tasks => 10
   }, :partial => 'settings/loader_settings'

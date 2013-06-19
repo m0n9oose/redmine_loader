@@ -24,6 +24,7 @@ class LoaderController < ApplicationController
       xmlfile = params[:import][:xmlfile].try(:tempfile)
       if xmlfile
         @import = TaskImport.new
+        @is_private_by_default = Setting[:plugin_redmine_loader][:is_private_by_default]
 
         byte = xmlfile.getc
         xmlfile.rewind

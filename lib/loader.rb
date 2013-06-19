@@ -41,6 +41,7 @@ class Loader
       struct.notes = task[:notes]
       struct.milestone = task[:milestone]
       struct.tracker_id = task[:tracker_id]
+      struct.is_private = task[:is_private]
       tasks_to_import[index.to_i] = struct
     end
     return tasks_to_import.compact.uniq
@@ -87,6 +88,7 @@ class Loader
           destination_issue.start_date = source_issue.try(:start)
           destination_issue.due_date = source_issue.try(:finish)
           destination_issue.description = source_issue.try(:notes)
+          destination_issue.is_private = source_issue.try(:is_private) ? 1 : 0
           if destination_issue.due_date.nil? && destination_issue.start_date
             destination_issue.due_date = (Date.parse(source_issue.start, false) + ((source_issue.duration.to_f/40.0)*7.0).to_i).to_s
           end

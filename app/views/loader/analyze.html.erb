@@ -4,7 +4,7 @@
   <p><%= l(:about_analyzed) %></p>
   <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
     <tr valign="middle" align="center" class="info">
-      <th><%= link_to_function l(:import), 'toggleIssuesSelection(this);' %></th>
+      <th><%= link_to_function l(:import), 'toggleIssuesSelection(this);', :class => 'import' %></th>
       <th>UID</th>
       <%= content_tag(:th, l(:name)) %>
       <%= content_tag(:th, l(:tracker)) %>
@@ -13,6 +13,7 @@
       <th>%</th>
       <%= content_tag(:th, l(:assigned_to)) %>
       <%= content_tag(:th, l(:priority)) %>
+      <th><%= link_to_function l(:field_is_private), 'toggleIssuesSelection(this);', :class => 'is_private' %></th>
       <%= content_tag(:th, l(:requires)) %>
     </tr>
     <% titles = {} %>

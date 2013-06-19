@@ -3,7 +3,8 @@ $(document).ready(function(){
 });
 
 function toggleIssuesSelection(el) {
-  var boxes = $(el).parents('form').find('input[type=checkbox]');
+  var klass = $(el).parents().find('a').attr('class')
+  var boxes = $(el).parents('form').find('input.' + klass + '[type=checkbox]');
   var all_checked = true;
   boxes.each(function(){ if (!$(this).attr('checked')) { all_checked = false; } });
   boxes.each(function(){

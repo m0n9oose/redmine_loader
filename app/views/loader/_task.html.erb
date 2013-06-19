@@ -1,6 +1,6 @@
 <%= content_tag :tr, :class => cycle('even', 'odd'), :align => 'center', :valign => 'top' do -%>
   <td>
-    <%= check_box_tag("import[tasks][#{index}][import]", '1', true, {:class => 'checkbox'}) %>
+    <%= check_box_tag("import[tasks][#{index}][import]", '1', true, {:class => 'import'}) %>
   </td>
   <td>
     <%= hidden_field_tag "import[tasks][#{index}][uid]", h(task.uid) %>
@@ -35,6 +35,9 @@
   </td>
   <td>
     <%= loader_priority_select_tag task.priority, index %>
+  </td>
+  <td>
+    <%= check_box_tag("import[tasks][#{index}][is_private]", '1', @is_private_by_default, {:class => 'is_private'}) %>
   </td>
   <td>
     <%= h(task.predecessors.join(', ')) %>
