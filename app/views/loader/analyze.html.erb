@@ -27,7 +27,7 @@
     </tr>
   </table>
   <% if @unprocessed_task_ids.any? %>
-    <p align='center'>Tasks with IDs: <%= @unprocessed_task_ids.join(' ,') %> cannot be processed. Please, check it.</p>
+    <p align='center'><%= t(:duplicates_warning, :ids => @unprocessed_task_ids.join(' ,')) %></p>
   <% end %>
   <% if @dupes > 0 %>
     <p align="center" colspan="5"><%= l(:warning_text).html_safe %></p>
