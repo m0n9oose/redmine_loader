@@ -57,8 +57,14 @@ class Loader
     # keep track of the outlineNumbers to set the parent_id
     outlinenumber_to_issue_id = {}
 
+    milestones = to_import.select { |task| task.milestone.to_i == 1 }
+    issues = to_import - milestones
+    default_tracker_id = Setting.plugin_redmine_loader['tracker_id']
+
     Issue.transaction do
       to_import.each do |source_issue|
+
+        final_tracker_id = source_issue.tracker_id ? source_issue.tracker_id : default_tracker_id
 
         # We comment those lines becouse they are not necesary now.
         # Add the category entry if necessary
@@ -69,9 +75,6 @@ class Loader
           category_entry = IssueCategory.find_by_name_and_project_id(source_issue.category, project.id)
           puts "DEBUG: Category found: #{category_entry.inspect}"
         end
-
-        default_tracker_id = Setting.plugin_redmine_loader['tracker_id']
-        final_tracker_id = source_issue.tracker_id ? source_issue.tracker_id : default_tracker_id
 
         unless source_issue.milestone.to_i == 1
           # Search exists issue by uid + project id, then by title + project id, and if nothing found - initialize new
@@ -122,9 +125,6 @@ class Loader
     # Set the parent_id. We use the outnum of the issue (the outlineNumber without the last .#).
     # This outnum is the same as the parent's outlineNumber, so we can use it as the index of the
     # outlinenumber_to_issue_id to get the parent's ID
-
-    milestones = to_import.select { |task| task.milestone.to_i == 1 }
-    issues = to_import - milestones
 
     to_import.each do |source_issue|
       if destination_issue = Issue.find_by_id_and_project_id(uid_to_issue_id[source_issue.uid], project.id)
