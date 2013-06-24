@@ -88,7 +88,7 @@ class Loader
           destination_issue.estimated_hours = source_issue.duration
           destination_issue.project_id = project.id
           destination_issue.author_id = user.id
-          destination_issue.lock_version = 0
+          destination_issue.lock_version = 0 if destination_issue.new_record?
           destination_issue.done_ratio = source_issue.try(:percentcomplete)
           destination_issue.start_date = source_issue.try(:start)
           destination_issue.due_date = source_issue.try(:finish)
