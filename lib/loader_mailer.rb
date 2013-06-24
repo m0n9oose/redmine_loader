@@ -10,6 +10,7 @@ module LoaderMailer
       @issues_url = url_for(:controller => 'issues', :action => 'index', :set_filter => 1, :author_id => user.id, :created_on => date, :sort => 'due_date:asc')
       @issues = issues
       @project = project
+      @project_url = url_for(:controller => 'projects', :action => 'show', :id => @project.identifier)
 
       mail :to => user.mail,
         :subject => t(:subject) + project.name

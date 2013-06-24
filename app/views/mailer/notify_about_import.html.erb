@@ -2,10 +2,10 @@
 
 <ul>
   <% @issues.each do |issue| -%>
-    <li><%=h issue[:title] %></li>
+    <li><%= h issue[:title] %></li>
   <% end -%>
 </ul>
 
-<%= t(:were_imported) %> <%= link_to_project @project %>.
+<%= t(:were_imported) %> <%= link_to @project.name, @project_url %>.
 <br />
 <%= t(:can_find_html, :link => link_to(t(:here), @issues_url)) %>.
