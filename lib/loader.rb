@@ -24,6 +24,7 @@ class Loader
       struct = Task.new
       struct.uid = task[:uid]
       struct.title = task[:title]
+      struct.status_id = task[:status_id]
       struct.level = task[:level]
       struct.outlinenumber = task[:outlinenumber]
       struct.outnum = task[:outnum]
@@ -75,7 +76,8 @@ class Loader
         unless source_issue.milestone.to_i == 1
           # Search exists issue by uid + project id, then by title + project id, and if nothing found - initialize new
           # Be careful, it destructive
-          destination_issue = Issue.where("id = ? OR subject = ? AND project_id = ?", source_issue.uid, source_issue.title, project.id).first_or_initialize
+          # destination_issue = Issue.where("id = ? OR subject = ? AND project_id = ?", source_issue.uid, source_issue.title, project.id).first_or_initialize
+          destination_issue = Issue.where("subject = ? AND project_id = ?", source_issue.title, project.id).first_or_initialize
           destination_issue.tracker_id = final_tracker_id
           destination_issue.priority_id = source_issue.priority
           destination_issue.category_id = category_entry.try(:id)
@@ -122,6 +124,7 @@ class Loader
     # outlinenumber_to_issue_id to get the parent's ID
 
     milestones = to_import.select { |task| task.milestone.to_i == 1 }
+    issues = to_import - milestones
 
     to_import.each do |source_issue|
       if destination_issue = Issue.find_by_id_and_project_id(uid_to_issue_id[source_issue.uid], project.id)
@@ -144,7 +147,6 @@ class Loader
 
     # Handle all the dependencies being careful if the parent doesn't exist
     IssueRelation.transaction do
-      issues = to_import - milestones
       issues.each do |source_issue|
         delaynumber = 0
         source_issue.predecessors.each do |parent_uid|
@@ -166,5 +168,6 @@ class Loader
         end
       end
     end
+    return issues.count
   end
 end

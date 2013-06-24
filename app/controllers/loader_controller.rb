@@ -69,9 +69,9 @@ class LoaderController < ApplicationController
     # Right, good to go! Do the import.
     begin
       if tasks_to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
-        Loader.import_tasks(tasks_to_import, @project, user)
+        tasks_count = Loader.import_tasks(tasks_to_import, @project, user)
 
-        flash[:notice] = l(:imported_successfully) + tasks_to_import.size.to_s
+        flash[:notice] = l(:imported_successfully) + tasks_count.to_s
         redirect_to project_issues_path(@project)
         return
       else
@@ -294,6 +294,7 @@ class LoaderController < ApplicationController
       begin
         logger.debug "Project/Tasks/Task found"
         struct = Task.new
+        struct.status_id = IssueStatus.default.id
         struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
         struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
 
