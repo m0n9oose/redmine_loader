@@ -1,6 +1,7 @@
 <%= javascript_include_tag 'loader.js', :plugin => 'redmine_loader' %>
 <h1><%= l(:import_tasks) %></h1>
 <%= form_for(:import, {:url => project_loader_path, :html => {:id => 'import', :multipart => true}}) do |f| %>
+  <%= hidden_field_tag "hashed_name", @import.hashed_name %>
   <p><%= l(:about_analyzed) %></p>
   <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
     <tr valign="middle" align="center" class="info">
@@ -22,6 +23,9 @@
       <%= render :partial => 'task', :locals => {:task => task, :index => index, :titles => titles} %>
     <% end %>
     <tr>
+      <td align="right" colspan="8">
+        <%= check_box_tag :update_existing, "1", true, :class => :update_existing %> <%= label_tag :update_existing, t(:update_existing), {:class => :update_existing} %>
+      </td>
       <td align="right" colspan="10"><%= f.submit(l(:import_selected), {:name => 'import[import_selected]'}) %></td>
       <%= content_tag(:td, link_to(l(:back), {:controller => 'loader', :action => 'new'})) %>
     </tr>

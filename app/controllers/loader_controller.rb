@@ -23,7 +23,7 @@ class LoaderController < ApplicationController
     begin
       xmlfile = params[:import][:xmlfile].try(:tempfile)
       if xmlfile
-        @import = TaskImport.new
+        @import = Import.new
         @is_private_by_default = Setting[:plugin_redmine_loader][:is_private_by_default]
 
         byte = xmlfile.getc
@@ -31,6 +31,7 @@ class LoaderController < ApplicationController
 
         xmlfile = Zlib::GzipReader.new xmlfile unless byte == '<'[0]
         File.open(xmlfile, 'r') do |readxml|
+          @import.hashed_name = (File.basename(xmlfile, File.extname(xmlfile)) + Time.now.to_s).hash.abs
           xmldoc = Nokogiri::XML::Document.parse(readxml).remove_namespaces!
           @import.tasks, @import.new_categories = get_tasks_from_xml(xmldoc)
         end
@@ -48,6 +49,7 @@ class LoaderController < ApplicationController
 
   def create
     tasks = params[:import][:tasks].select { |index, task_info| task_info[:import] == '1' }
+    update_existing = params[:update_existing]
 
     flash[:error] = l(:choose_file_warning) unless tasks
 
@@ -58,8 +60,10 @@ class LoaderController < ApplicationController
     default_tracker_id = Setting.plugin_redmine_loader['tracker_id']
     user = User.current
     date = Date.today.strftime
+    tasks_per_time = Setting.plugin_redmine_loader['instant_import_tasks'].to_i
 
     flash[:error] = l(:no_valid_default_tracker) unless default_tracker_id
+    import_name = params[:hashed_name]
 
     if flash[:error]
       redirect_to new_project_loader_path # interrupt if any errors
@@ -68,19 +72,35 @@ class LoaderController < ApplicationController
 
     # Right, good to go! Do the import.
     begin
-      if tasks_to_import.size <= Setting.plugin_redmine_loader['instant_import_tasks'].to_i
-        tasks_count = Loader.import_tasks(tasks_to_import, @project, user)
+      milestones = tasks_to_import.select { |task| task.milestone.to_i == 1 }
+      issues = tasks_to_import - milestones
+      issues_info = tasks_to_import.map { |issue| {:title => issue.title, :uid => issue.uid, :outlinenumber => issue.outlinenumber, :predecessors => issue.predecessors} }
 
-        flash[:notice] = l(:imported_successfully) + tasks_count.to_s
+      if tasks_to_import.size <= tasks_per_time
+        uid_to_issue_id, uid_to_version_id, outlinenumber_to_issue_id = Loader.import_tasks(tasks_to_import, @project.id, user, nil, update_existing)
+        Loader.map_subtasks_and_parents(issues_info, @project.id, nil, uid_to_issue_id, outlinenumber_to_issue_id)
+        Loader.map_versions_and_relations(milestones, issues, @project.id, nil, uid_to_issue_id, uid_to_version_id)
+
+        flash[:notice] = l(:imported_successfully) + issues.count.to_s
         redirect_to project_issues_path(@project)
         return
       else
-        # slice issues array to few batches, because psych can't process array bigger than 65536
-        tasks_to_import.each_slice(30).to_a.each do |batch|
-          Loader.delay.import_tasks(batch, @project, user)
+        tasks_to_import.each_slice(tasks_per_time).each do |batch|
+          Loader.delay(:queue => import_name, :priority => 1).import_tasks(batch, @project.id, user, import_name, update_existing)
         end
-        issues_info = tasks_to_import.map { |issue| {:title => issue.title} }
-        Mailer.delay.notify_about_import(user, @project, date, issues_info) # send notification that import finished
+
+        issues_info.each_slice(50).each do |batch|
+          Loader.delay(:queue => import_name, :priority => 3).map_subtasks_and_parents(batch, @project.id, import_name)
+        end
+
+        issues.each_slice(tasks_per_time).each do |batch|
+          Loader.delay(:queue => import_name, :priority => 4).map_versions_and_relations(milestones, batch, @project.id, import_name)
+        end
+
+        Mailer.delay(:queue => import_name, :priority => 5).notify_about_import(user, @project, date, issues_info) # send notification that import finished
+
+        Import.delay(:queue => import_name, :priority => 10).clean_up(import_name)
+
         flash[:notice] = t(:your_tasks_being_imported)
       end
     rescue => error
@@ -130,16 +150,11 @@ class LoaderController < ApplicationController
             xml.CreateDate @project.created_on.to_s(:ms_xml)
           }
 
-          if @query
-            determine_nesting @query_issues
-            @nested_issues.each { |struct| write_task(xml, struct) }
-            Version.where(:id => @query_issues.map(&:fixed_version_id).uniq).each { |version| write_version(xml, version) }
-          else
-            @project.versions.each { |version| write_version(xml, version) }
-            issues = @project.issues.visible
-            determine_nesting(issues)
-            @nested_issues.each { |issue| write_task(xml, issue) }
-          end
+          versions = @query ? Version.where(:id => @query_issues.map(&:fixed_version_id).uniq) : @project.versions
+          versions.each { |version| write_version(xml, version) }
+          issues = (@query_issues || @project.issues.visible)
+          nested_issues = determine_nesting issues, versions.count
+          nested_issues.each { |issue| write_task(xml, issue) }
 
         }
         xml.Resources {
@@ -181,23 +196,24 @@ class LoaderController < ApplicationController
     return export.to_xml, filename
   end
 
-  def determine_nesting(issues)
-    @nested_issues = []
-    grouped = issues.group_by(&:level).sort_by{ |key| key }
-    grouped.each do |level, grouped_issues|
+  def determine_nesting(issues, versions_count)
+    nested_issues = []
+    leveled_tasks = issues.group_by(&:level)
+    leveled_tasks.sort_by{ |key| key }.each do |level, grouped_issues|
       grouped_issues.each_with_index do |issue, index|
-        struct = Task.new
-        struct.issue = issue
-        if child = issue.child?
-          parent = issue.parent
-          parent_outlinenumber = @nested_issues.detect{ |struct| struct.issue == parent }.try(:outlinenumber)
+        outlinenumber = if issue.child?
+          "#{nested_issues.detect{ |struct| struct.id == issue.parent_id }.try(:outlinenumber)}.#{get_child_index(issue)}"
+        else
+          (leveled_tasks[level].index(issue).next + versions_count).to_s
         end
-        struct.outlinenumber = child ? parent_outlinenumber.to_s + '.' + (index + 1).to_s : issues.index(issue)
-        struct.outlinelevel = issue.level + 1
-        @nested_issues << struct
+        nested_issues << ExportTask.new(issue, issue.level.next, outlinenumber)
       end
     end
-    return @nested_issues
+    return nested_issues.sort_by! &:outlinenumber
+  end
+
+  def get_child_index(issue)
+    issue.parent.child_ids.index(issue.id).next
   end
 
   def get_priority_value(priority_name)
@@ -211,30 +227,29 @@ class LoaderController < ApplicationController
     return value
   end
 
-  def write_task(xml, struct, due_date=nil, under_version=false)
-    return if @used_issues.has_key?(struct.issue.id)
+  def write_task(xml, struct)
+    return if @used_issues.has_key?(struct.id)
     xml.Task {
-      @used_issues[struct.issue.id] = true
-      xml.UID(struct.issue.id)
+      @used_issues[struct.id] = true
+      xml.UID(struct.id)
       xml.ID(struct.tid)
-      xml.Name(struct.issue.subject)
-      xml.Notes(struct.issue.description)
-      xml.CreateDate(struct.issue.created_on.to_s(:ms_xml))
-      xml.Priority(get_priority_value(struct.issue.priority.name))
-      xml.Start(struct.issue.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
-      xml.Finish(struct.issue.try(:due_date).try(:to_time).try(:to_s, :ms_xml))
+      xml.Name(struct.subject)
+      xml.Notes(struct.description)
+      xml.CreateDate(struct.created_on.to_s(:ms_xml))
+      xml.Priority(get_priority_value(struct.priority.name))
+      xml.Start(struct.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
+      xml.Finish(struct.try(:due_date).try(:to_time).try(:to_s, :ms_xml))
       xml.FixedCostAccrual "3"
       xml.ConstraintType "4"
-      xml.ConstraintDate(struct.issue.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
-      #If the issue is parent: summary, critical and rollup = 1, if not = 0
-      parent = Issue.find(struct.issue.id).leaf? ? 0 : 1
+      xml.ConstraintDate(struct.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
+      parent = struct.leaf? ? 0 : 1
       xml.Summary(parent)
       xml.Critical(parent)
       xml.Rollup(parent)
       xml.Type(parent)
 
       xml.PredecessorLink {
-        xml.PredecessorUID struct.issue.fixed_version_id
+        xml.PredecessorUID struct.fixed_version_id
       }
 
       xml.WBS(struct.outlinenumber)
@@ -293,18 +308,10 @@ class LoaderController < ApplicationController
     doc.xpath('Project/Tasks/Task').each do |task|
       begin
         logger.debug "Project/Tasks/Task found"
-        struct = Task.new
+        struct = ImportTask.new
         struct.status_id = IssueStatus.default.id
         struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
         struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
-
-        auxString = struct.try(:outlinenumber)
-
-        index = auxString.rindex('.')
-        if index
-          index -= 1
-          struct.outnum = auxString[0..index]
-        end
         struct.tid = task.at('ID').try(:text).try(:to_i)
         struct.uid = task.at('UID').try(:text).try(:to_i)
         struct.title = task.at('Name').try(:text).try(:strip)

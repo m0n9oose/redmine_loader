@@ -13,8 +13,9 @@ en:
   end_date: End date
   priority: Priority
   assigned_to: Assigned to
-  requires: Requires
+  requires: Predecessors
   export_issue: Export Issue
+  update_existing: Update existing
   about_analyzed: The tasks found in the file are listed below. Only items with a ticked check box next to them will be imported. Once happy with your selection, use the  "Import selected issues" button to begin the import process. To abandon the import, use the "Back" link.
   no_tasks_were_selected: No tasks were selected for import. Please select at least one task and try again.
   no_valid_default_tracker: No valid default Tracker. Please ask your System Administrator to resolve this.
