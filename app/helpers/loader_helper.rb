@@ -14,8 +14,8 @@ module LoaderHelper
     select_tag "import[tasks][#{index}][assigned_to]", options_from_collection_for_select(project.assignable_users, 'id', 'name', :selected => assigned_to ), { :include_blank => true }
   end
 
-  def loader_tracker_select_tag(project, index)
-    tracker = Setting.plugin_redmine_loader['tracker_id']
+  def loader_tracker_select_tag(project, tracker_name, index)
+    tracker = (@map_trackers[tracker_name] || Setting.plugin_redmine_loader['tracker_id'])
     select_tag "import[tasks][#{index}][tracker_id]", options_from_collection_for_select(project.trackers, :id, :name, :selected => tracker)
   end
 

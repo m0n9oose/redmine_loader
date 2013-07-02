@@ -16,8 +16,8 @@ class Loader
       struct.finish = task[:finish]
       struct.priority = task[:priority]
       struct.percentcomplete = task[:percentcomplete]
-      struct.predecessors = task[:predecessors].split(', ')
-      struct.delays = task[:delays].split(', ')
+      struct.predecessors = task[:predecessors].try(:split, ', ')
+      struct.delays = task[:delays].try(:split, ', ')
       struct.category = task[:category]
       struct.assigned_to = task[:assigned_to]
       struct.parent_id = task[:parent_id]
@@ -61,7 +61,7 @@ class Loader
           # Search exists issue by uid + project id, then by title + project id, and if nothing found - initialize new
           # Be careful, it destructive
           # destination_issue = Issue.where("id = ? OR subject = ? AND project_id = ?", source_issue.uid, source_issue.title, project_id).first_or_initialize
-          destination_issue = update_existing ? Issue.where("subject = ? AND project_id = ?", source_issue.title, project_id).first_or_initialize : Issue.new
+          destination_issue = update_existing ? Issue.where("id = ? AND project_id = ?", source_issue.tid, project_id).first_or_initialize : Issue.new
           destination_issue.tracker_id = final_tracker_id
           destination_issue.priority_id = source_issue.priority
           destination_issue.category_id = category_entry.try(:id)
@@ -69,6 +69,7 @@ class Loader
           destination_issue.estimated_hours = source_issue.duration
           destination_issue.project_id = project_id
           destination_issue.author_id = user.id
+          destination_issue.estimated_hours = source_issue.duration
           destination_issue.done_ratio = source_issue.try(:percentcomplete)
           destination_issue.start_date = source_issue.try(:start)
           destination_issue.due_date = source_issue.try(:finish)
@@ -110,8 +111,9 @@ class Loader
       File.open(issues_filename, 'a') { |file| file << uid_to_issue_id.to_yaml }
       File.open(outlinenumber_filename, 'a') { |file| file << outlinenumber_to_issue_id.to_yaml }
       File.open(versions_filename, 'a') { |file| file << uid_to_version_id.to_yaml }
+    else
+      return uid_to_issue_id, uid_to_version_id, outlinenumber_to_issue_id
     end
-    return uid_to_issue_id, uid_to_version_id, outlinenumber_to_issue_id
   end
 
   def self.map_subtasks_and_parents(tasks, project_id, hashed_name=nil, uid_to_issue_id=nil, outlinenumber_to_issue_id=nil)

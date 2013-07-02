@@ -25,6 +25,7 @@ class LoaderController < ApplicationController
       if xmlfile
         @import = Import.new
         @is_private_by_default = Setting[:plugin_redmine_loader][:is_private_by_default]
+        @map_trackers = Hash[Tracker.all.map { |tracker| [tracker.name, tracker.id] }]
 
         byte = xmlfile.getc
         xmlfile.rewind
@@ -148,6 +149,18 @@ class LoaderController < ApplicationController
             xml.Name @project.name
             xml.Type "1"
             xml.CreateDate @project.created_on.to_s(:ms_xml)
+            xml.ExtendedAttributes {
+              xml.ExtendedAttribute {
+                xml.FieldID '188744001'
+                xml.FieldName 'Text15'
+                xml.Alias 'RID'
+              }
+              xml.ExtendedAttribute {
+                xml.FieldID '188744002'
+                xml.FieldName 'Text16'
+                xml.Alias 'Tracker'
+              }
+            }
           }
 
           versions = @query ? Version.where(:id => @query_issues.map(&:fixed_version_id).uniq) : @project.versions
@@ -227,31 +240,67 @@ class LoaderController < ApplicationController
     return value
   end
 
+  def get_scorm_time time
+    return 'PT0H0M0S' if time.zero?
+    atime = time.to_s.split('.')
+    hours = atime.first.to_i
+    minutes = atime.last.to_i == 0 ? 0 : (60 * "0.#{atime.last}".to_f).to_i
+    return "PT#{hours}H#{minutes}M0S"
+  end
+
   def write_task(xml, struct)
     return if @used_issues.has_key?(struct.id)
     xml.Task {
       @used_issues[struct.id] = true
       xml.UID(struct.id)
-      xml.ID(struct.tid)
+      xml.ID(struct.id)
       xml.Name(struct.subject)
       xml.Notes(struct.description)
       xml.CreateDate(struct.created_on.to_s(:ms_xml))
       xml.Priority(get_priority_value(struct.priority.name))
-      xml.Start(struct.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
-      xml.Finish(struct.try(:due_date).try(:to_time).try(:to_s, :ms_xml))
+      xml.Start (struct.start_date || struct.created_on).to_time.to_s(:ms_xml)
+      xml.Finish (struct.due_date || struct.created_on + 9.hours).to_time.to_s(:ms_xml)
+      if struct.estimated_hours
+        xml.Duration get_scorm_time(struct.estimated_hours)
+        xml.DurationFormat '7'
+      end
       xml.FixedCostAccrual "3"
       xml.ConstraintType "4"
-      xml.ConstraintDate(struct.try(:start_date).try(:to_time).try(:to_s, :ms_xml))
+      xml.ConstraintDate (struct.start_date || struct.created_on).to_time.to_s(:ms_xml)
       parent = struct.leaf? ? 0 : 1
       xml.Summary(parent)
       xml.Critical(parent)
       xml.Rollup(parent)
       xml.Type(parent)
-
-      xml.PredecessorLink {
-        xml.PredecessorUID struct.fixed_version_id
+      if struct.fixed_version_id
+        xml.PredecessorLink {
+          xml.PredecessorUID struct.fixed_version_id
+          xml.CrossProject '0'
+        }
+      end
+#      if struct.relations_to_ids.any?
+#        struct.relations.select { |ir| ir.relation_type == 'precedes' }.each do |relation|
+#          xml.PredecessorLink {
+#            xml.PredecessorUID relation.issue_from_id
+#            if struct.project_id == relation.issue_from.project_id
+#              xml.CrossProject '0'
+#            else
+#              xml.CrossProject '1'
+#              xml.CrossProjectName relation.issue_from.project.name
+#            end
+#            xml.LinkLag (relation.delay * 4800).to_s
+#            xml.LagFormat '7'
+#          }
+#        end
+#      end
+      xml.ExtendedAttribute {
+        xml.FieldID '188744001'
+        xml.Value struct.id
       }
-
+      xml.ExtendedAttribute {
+        xml.FieldID '188744002'
+        xml.Value struct.tracker.name
+      }
       xml.WBS(struct.outlinenumber)
       xml.OutlineNumber(struct.outlinenumber)
       xml.OutlineLevel(struct.outlinelevel)
@@ -278,6 +327,10 @@ class LoaderController < ApplicationController
       xml.Critical("1")
       xml.Rollup("1")
       xml.Type("1")
+      xml.ExtendedAttribute {
+        xml.FieldID '188744001'
+        xml.Value version.id
+      }
       # Removed for now causes too many circular references
       #issues = @project.issues.find(:all, :conditions => ["fixed_version_id = ?", version.id], :order => "parent_id, start_date, id")
       #issues.each do |issue|
@@ -299,10 +352,16 @@ class LoaderController < ApplicationController
     logger.debug "DEBUG: BEGIN get_tasks_from_xml"
 
     tracker_alias = Setting.plugin_redmine_loader['tracker_alias']
-    tracker_field_id = nil
+    redmine_id_alias = Setting.plugin_redmine_loader['redmine_id_alias']
+    tracker_field = nil
+    issue_rid = nil
 
     doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{tracker_alias}']/FieldID").each do |ext_attr|
-      tracker_field_id = ext_attr.text.to_i
+      tracker_field = ext_attr.text.to_i
+    end
+
+    doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{redmine_id_alias}']/FieldID").each do |ext_attr|
+      issue_rid = ext_attr.text.to_i
     end
 
     doc.xpath('Project/Tasks/Task').each do |task|
@@ -312,18 +371,22 @@ class LoaderController < ApplicationController
         struct.status_id = IssueStatus.default.id
         struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
         struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
-        struct.tid = task.at('ID').try(:text).try(:to_i)
+        #struct.tid = task.at('ID').try(:text).try(:to_i)
         struct.uid = task.at('UID').try(:text).try(:to_i)
         struct.title = task.at('Name').try(:text).try(:strip)
         struct.start = task.at('Start').try(:text).try{|t| t.split("T")[0]}
         struct.finish = task.at('Finish').try(:text).try{|t| t.split("T")[0]}
         struct.priority = task.at('Priority').try(:text)
 
-        task.xpath("ExtendedAttribute[FieldID='#{tracker_field_id}']/Value").each do |tracker_value|
+        task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").each do |tracker_value|
           struct.tracker_name = tracker_value.text
+        end
+        task.xpath("ExtendedAttribute[FieldID='#{issue_rid}']/Value").each do |issue_rid|
+          struct.tid = issue_rid.try(:text).try(:to_i)
         end
 
         struct.milestone = task.at('Milestone').try(:text).try(:to_i)
+        struct.duration = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') if struct.milestone.zero?
         struct.percentcomplete = task.at('PercentComplete').try(:text).try(:to_i)
         struct.notes = task.at('Notes').try(:text).try(:strip)
         struct.predecessors = []
