@@ -139,6 +139,8 @@ class LoaderController < ApplicationController
     export = Nokogiri::XML::Builder.new(:encoding => 'UTF-8') do |xml|
       @used_issues = {}
       xml.Project {
+        xml.Title @project.name
+        xml.CreationDate @project.created_on.to_s(:ms_xml)
         xml.Tasks {
           xml.Task {
             xml.UID "0"
@@ -253,7 +255,7 @@ class LoaderController < ApplicationController
     xml.Task {
       @used_issues[struct.id] = true
       xml.UID(struct.id)
-      xml.ID(struct.id)
+      xml.ID(struct.tid)
       xml.Name(struct.subject)
       xml.Notes(struct.description)
       xml.CreateDate(struct.created_on.to_s(:ms_xml))
@@ -386,7 +388,7 @@ class LoaderController < ApplicationController
         end
 
         struct.milestone = task.at('Milestone').try(:text).try(:to_i)
-        struct.duration = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') if struct.milestone.zero?
+        struct.duration = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') unless !struct.milestone.try(:zero?)
         struct.percentcomplete = task.at('PercentComplete').try(:text).try(:to_i)
         struct.notes = task.at('Notes').try(:text).try(:strip)
         struct.predecessors = []

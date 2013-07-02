@@ -158,12 +158,10 @@ class Loader
       end
     end
 
-    Issue.transaction do
-      milestones.each do |milestone|
-        issue_ids = tasks.select { |i| i.predecessors.include? milestone.uid.to_s }.map { |task| uid_to_issue_id[task.uid] }
-        Issue.where("id IN (?) AND project_id = ?", issue_ids, project_id).each do |issue|
-          issue.update_attributes(:fixed_version_id => uid_to_version_id[milestone.uid])
-        end
+    milestones.each do |milestone|
+      issue_ids = tasks.select { |i| i.predecessors.include? milestone.uid.to_s }.map { |task| uid_to_issue_id[task.uid] }
+      Issue.where("id IN (?) AND project_id = ?", issue_ids, project_id).each do |issue|
+        issue.update_attributes(:fixed_version_id => uid_to_version_id[milestone.uid])
       end
     end
 
