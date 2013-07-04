@@ -213,11 +213,11 @@ class LoaderController < ApplicationController
 
   def determine_nesting(issues, versions_count)
     nested_issues = []
-    leveled_tasks = issues.group_by(&:level)
+    leveled_tasks = issues.sort_by(&:id).group_by(&:level)
     leveled_tasks.sort_by{ |key| key }.each do |level, grouped_issues|
       grouped_issues.each_with_index do |issue, index|
         outlinenumber = if issue.child?
-          "#{nested_issues.detect{ |struct| struct.id == issue.parent_id }.try(:outlinenumber)}.#{get_child_index(issue)}"
+          "#{nested_issues.detect{ |struct| struct.id == issue.parent_id }.try(:outlinenumber)}.#{leveled_tasks[level].index(issue).next}"
         else
           (leveled_tasks[level].index(issue).next + versions_count).to_s
         end
