@@ -198,7 +198,7 @@ class LoaderController < ApplicationController
               xml.UID issue.id
               xml.TaskUID issue.id
               xml.ResourceUID issue.assigned_to_id
-              xml.PercentWorkComplete issue.done_ratio
+              #xml.PercentWorkComplete issue.done_ratio
               xml.Units "1"
             }
           end
@@ -259,7 +259,7 @@ class LoaderController < ApplicationController
       xml.Name(struct.subject)
       xml.Notes(struct.description)
       xml.CreateDate(struct.created_on.to_s(:ms_xml))
-      xml.Priority(get_priority_value(struct.priority.name))
+      #xml.Priority(get_priority_value(struct.priority.name))
       xml.Start (struct.start_date || struct.created_on).to_time.to_s(:ms_xml)
       xml.Finish (struct.due_date || struct.created_on + 9.hours).to_time.to_s(:ms_xml)
       if struct.estimated_hours
@@ -378,7 +378,7 @@ class LoaderController < ApplicationController
         struct.title = task.at('Name').try(:text).try(:strip)
         struct.start = task.at('Start').try(:text).try{|t| t.split("T")[0]}
         struct.finish = task.at('Finish').try(:text).try{|t| t.split("T")[0]}
-        struct.priority = task.at('Priority').try(:text)
+        #struct.priority = task.at('Priority').try(:text)
 
         task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").each do |tracker_value|
           struct.tracker_name = tracker_value.text
@@ -389,7 +389,7 @@ class LoaderController < ApplicationController
 
         struct.milestone = task.at('Milestone').try(:text).try(:to_i)
         struct.duration = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') unless !struct.milestone.try(:zero?)
-        struct.percentcomplete = task.at('PercentComplete').try(:text).try(:to_i)
+        #struct.percentcomplete = task.at('PercentComplete').try(:text).try(:to_i)
         struct.notes = task.at('Notes').try(:text).try(:strip)
         struct.predecessors = []
         struct.delays = []

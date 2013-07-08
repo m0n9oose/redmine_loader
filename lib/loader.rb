@@ -14,8 +14,8 @@ class Loader
       struct.duration = task[:duration]
       struct.start = task[:start]
       struct.finish = task[:finish]
-      struct.priority = task[:priority]
-      struct.percentcomplete = task[:percentcomplete]
+      #struct.priority = task[:priority]
+      #struct.percentcomplete = task[:percentcomplete]
       struct.predecessors = task[:predecessors].try(:split, ', ')
       struct.delays = task[:delays].try(:split, ', ')
       struct.category = task[:category]
@@ -63,14 +63,14 @@ class Loader
           # destination_issue = Issue.where("id = ? OR subject = ? AND project_id = ?", source_issue.uid, source_issue.title, project_id).first_or_initialize
           destination_issue = update_existing ? Issue.where("id = ? AND project_id = ?", source_issue.tid, project_id).first_or_initialize : Issue.new
           destination_issue.tracker_id = final_tracker_id
-          destination_issue.priority_id = source_issue.priority
+          #destination_issue.priority_id = source_issue.priority
           destination_issue.category_id = category_entry.try(:id)
           destination_issue.subject = source_issue.title.slice(0, 246) + '_imported' # Max length of this field is 255
           destination_issue.estimated_hours = source_issue.duration
           destination_issue.project_id = project_id
           destination_issue.author_id = user.id
           destination_issue.estimated_hours = source_issue.duration
-          destination_issue.done_ratio = source_issue.try(:percentcomplete)
+          #destination_issue.done_ratio = source_issue.try(:percentcomplete)
           destination_issue.start_date = source_issue.try(:start)
           destination_issue.due_date = source_issue.try(:finish)
           destination_issue.description = source_issue.try(:notes)
