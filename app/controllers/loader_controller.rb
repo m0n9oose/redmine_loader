@@ -388,6 +388,7 @@ class LoaderController < ApplicationController
         end
 
         struct.milestone = task.at('Milestone').try(:text).try(:to_i)
+        next unless struct.milestone.zero?
         struct.duration = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') unless !struct.milestone.try(:zero?)
         #struct.percentcomplete = task.at('PercentComplete').try(:text).try(:to_i)
         struct.notes = task.at('Notes').try(:text).try(:strip)
