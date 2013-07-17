@@ -36,7 +36,7 @@ class Loader
     # We're going to keep track of new issue ID's to make dependencies work later
     uid_to_issue_id = {}
     # keep track of new Version ID's
-    uid_to_version_id = {}
+#    uid_to_version_id = {}
     # keep track of the outlineNumbers to set the parent_id
     outlinenumber_to_issue_id = {}
 
@@ -45,17 +45,17 @@ class Loader
     Issue.transaction do
       to_import.each do |source_issue|
 
-        final_tracker_id = source_issue.tracker_id ? source_issue.tracker_id : default_tracker_id
+        final_tracker_id = (source_issue.tracker_id || default_tracker_id)
 
         # We comment those lines becouse they are not necesary now.
         # Add the category entry if necessary
         #category_entry = IssueCategory.find :first, :conditions => { :project_id => project_id, :name => source_issue.category }
-        puts "DEBUG: Issue to be imported: #{source_issue.inspect}"
-        if source_issue.category.present?
-          puts "DEBUG: Search category id by name: #{source_issue.category}"
-          category_entry = IssueCategory.find_by_name_and_project_id(source_issue.category, project_id)
-          puts "DEBUG: Category found: #{category_entry.inspect}"
-        end
+#        puts "DEBUG: Issue to be imported: #{source_issue.inspect}"
+#        if source_issue.category.present?
+#          puts "DEBUG: Search category id by name: #{source_issue.category}"
+#          category_entry = IssueCategory.find_by_name_and_project_id(source_issue.category, project_id)
+#          puts "DEBUG: Category found: #{category_entry.inspect}"
+#        end
 
         unless source_issue.milestone.to_i == 1
           # Search exists issue by uid + project id, then by title + project id, and if nothing found - initialize new
@@ -64,7 +64,7 @@ class Loader
           destination_issue = update_existing ? Issue.where("id = ? AND project_id = ?", source_issue.tid, project_id).first_or_initialize : Issue.new
           destination_issue.tracker_id = final_tracker_id
           #destination_issue.priority_id = source_issue.priority
-          destination_issue.category_id = category_entry.try(:id)
+#          destination_issue.category_id = category_entry.try(:id)
           destination_issue.subject = source_issue.title.slice(0, 246) + '_imported' # Max length of this field is 255
           destination_issue.estimated_hours = source_issue.duration
           destination_issue.project_id = project_id
@@ -89,15 +89,15 @@ class Loader
           #Save the Issue's ID with the outlineNumber as an index, to set the parent_id later
           outlinenumber_to_issue_id[source_issue.outlinenumber] = destination_issue.id
         else
-          #If the issue is a milestone we save it as a Redmine Version
-          version_record = Version.where("name = ? AND project_id = ?", source_issue.title, project_id).first_or_initialize
-          version_record.name = source_issue.title.slice(0, 59)#maximum is 60 characters
-          version_record.description = source_issue.try(:notes)
-          version_record.effective_date = source_issue.start
-          version_record.project_id = project_id
-          version_record.save!
-          # Store the version_record.id to assign the issues to the version later
-          uid_to_version_id[source_issue.uid] = version_record.id
+#          #If the issue is a milestone we save it as a Redmine Version
+#          version_record = Version.where("name = ? AND project_id = ?", source_issue.title, project_id).first_or_initialize
+#          version_record.name = source_issue.title.slice(0, 59)#maximum is 60 characters
+#          version_record.description = source_issue.try(:notes)
+#          version_record.effective_date = source_issue.start
+#          version_record.project_id = project_id
+#          version_record.save!
+#          # Store the version_record.id to assign the issues to the version later
+#          uid_to_version_id[source_issue.uid] = version_record.id
         end
       end
     end
@@ -106,13 +106,13 @@ class Loader
 
     if hashed_name
       issues_filename = hashed_name + '_uid_to_issue_id'
-      versions_filename = hashed_name + '_uid_to_version_id'
+      #versions_filename = hashed_name + '_uid_to_version_id'
       outlinenumber_filename = hashed_name + '_outlinenumber_to_issue_id'
       File.open(issues_filename, 'a') { |file| file << uid_to_issue_id.to_yaml }
       File.open(outlinenumber_filename, 'a') { |file| file << outlinenumber_to_issue_id.to_yaml }
-      File.open(versions_filename, 'a') { |file| file << uid_to_version_id.to_yaml }
+      #File.open(versions_filename, 'a') { |file| file << uid_to_version_id.to_yaml }
     else
-      return uid_to_issue_id, uid_to_version_id, outlinenumber_to_issue_id
+      return uid_to_issue_id, outlinenumber_to_issue_id#, uid_to_version_id
     end
   end
 
@@ -152,18 +152,18 @@ class Loader
         uids.reduce(:merge)
       end
 
-      uid_to_version_id = File.open((hashed_name + '_uid_to_version_id'), 'r') do |file|
-        uid_to_version_id = YAML::load_documents(file)
-        uid_to_version_id.reduce(:merge)
-      end
+#      uid_to_version_id = File.open((hashed_name + '_uid_to_version_id'), 'r') do |file|
+#        uid_to_version_id = YAML::load_documents(file)
+#        uid_to_version_id.reduce(:merge)
+#      end
     end
 
-    milestones.each do |milestone|
-      issue_ids = tasks.select { |i| i.predecessors.include? milestone.uid.to_s }.map { |task| uid_to_issue_id[task.uid] }
-      Issue.where("id IN (?) AND project_id = ?", issue_ids, project_id).each do |issue|
-        issue.update_attributes(:fixed_version_id => uid_to_version_id[milestone.uid])
-      end
-    end
+#    milestones.each do |milestone|
+#      issue_ids = tasks.select { |i| i.predecessors.include? milestone.uid.to_s }.map { |task| uid_to_issue_id[task.uid] }
+#      Issue.where("id IN (?) AND project_id = ?", issue_ids, project_id).each do |issue|
+#        issue.update_attributes(:fixed_version_id => uid_to_version_id[milestone.uid])
+#      end
+#    end
 
     # Delete all the relations off the issues that we are going to import. If they continue existing we are going to create them. If not they must be deleted.
     tasks.each do |source_issue|
