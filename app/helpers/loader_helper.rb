@@ -37,11 +37,11 @@ module LoaderHelper
   def duplicates_count(document, titles)
     @dupes = 0
     document.tasks.each do |task|
-      if titles[task.title]
+      if titles[task.subject]
         @dupes += 1
-        titles[task.title] = @dupes
+        titles[task.subject] = @dupes
       else
-        titles[task.title] = true
+        titles[task.subject] = true
       end
     end
     return @dupes

@@ -1,32 +1,34 @@
-<%= javascript_include_tag 'loader.js', :plugin => 'redmine_loader' %>
+<%= javascript_include_tag 'loader.js', plugin: 'redmine_loader' %>
 <h1><%= l(:import_tasks) %></h1>
-<%= form_for(:import, {:url => project_loader_path, :html => {:id => 'import', :multipart => true}}) do |f| %>
+<%= form_for(:import, {url: project_loader_path, html: {id: 'import', multipart: true}}) do |f| %>
   <%= hidden_field_tag "hashed_name", @import.hashed_name %>
   <% if @import.tasks.any? %>
     <p><%= l(:about_analyzed) %></p>
     <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
       <tr valign="middle" align="center" class="info">
-        <th><%= link_to_function l(:import), 'toggleIssuesSelection(this);', :class => 'import' %></th>
+        <th><%= link_to_function l(:import), 'toggleIssuesSelection(this);', class: 'import' %></th>
         <th>UID</th>
         <%= content_tag(:th, l(:name)) %>
         <%= content_tag(:th, l(:tracker)) %>
         <%= content_tag(:th, l(:start_date)) %>
-        <%= content_tag(:th, l(:end_date)) %>
+        <%= content_tag(:th, l(:end_date)) unless 'due_date'.in?(@import_ignore_fields) %>
+        <%= content_tag(:th, '%') unless 'done_ratio'.in?(@import_ignore_fields) %>
         <%= content_tag(:th, l(:assigned_to)) %>
-        <th><%= link_to_function l(:field_is_private), 'toggleIssuesSelection(this);', :class => 'is_private' %></th>
+        <%= content_tag(:th, l(:priority)) unless 'priority_id'.in?(@import_ignore_fields) %>
+        <th><%= link_to_function l(:field_is_private), 'toggleIssuesSelection(this);', class: 'is_private' %></th>
         <%= content_tag(:th, l(:requires)) %>
       </tr>
       <% titles = {} %>
       <% duplicates_count(@import, titles) %>
       <% @import.tasks.each_with_index do |task, index| %>
-        <%= render :partial => 'task', :locals => {:task => task, :index => index, :titles => titles} %>
+        <%= render partial: 'task', locals: {task: task, index: index, titles: titles} %>
       <% end %>
       <tr>
         <td align="right" colspan="8">
-          <%= check_box_tag :update_existing, "1", true, :class => :update_existing %> <%= label_tag :update_existing, t(:update_existing), {:class => :update_existing} %>
+          <%= check_box_tag :update_existing, "1", true, class: :update_existing %> <%= label_tag :update_existing, t(:update_existing), {class: :update_existing} %>
         </td>
-        <td align="right" colspan="10"><%= f.submit(l(:import_selected), {:name => 'import[import_selected]'}) %></td>
-        <%= content_tag(:td, link_to(l(:back), {:controller => 'loader', :action => 'new'})) %>
+        <td align="right" colspan="10"><%= f.submit(l(:import_selected), {name: 'import[import_selected]'}) %></td>
+        <%= content_tag(:td, link_to(l(:back), {controller: 'loader', action: 'new'})) %>
       </tr>
     </table>
     <% if @dupes > 0 %>
@@ -34,7 +36,7 @@
     <% end %>
   <% end %>
   <% if @unprocessed_task_ids.any? %>
-    <p align='center'><%= t(:duplicates_warning, :ids => @unprocessed_task_ids.join(', ')) %></p>
+    <p align='center'><%= t(:duplicates_warning, ids: @unprocessed_task_ids.join(', ')) %></p>
   <% end %>
 <% end %>
 <%= hidden_field_tag("project_id", "#{@project.id}") %>

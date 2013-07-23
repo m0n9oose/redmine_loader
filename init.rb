@@ -1,6 +1,6 @@
 require 'redmine'
 
-require_dependency 'loader'
+require_dependency 'string'
 require_dependency 'views_issues_index_bottom_hook'
 
 ActionDispatch::Callbacks.to_prepare do
@@ -11,37 +11,54 @@ end
 
 Redmine::Plugin.register :redmine_loader do
 
-  name 'Basic project file loader for Redmine'
+  author 'Simon Stearn, Andrew Hodgkinsons'
 
-  author 'Simon Stearn largely hacking Andrew Hodgkinsons trackrecord code (sorry Andrew)'
+  desc = 'MS Project/Redmine sync plugin'
+  name desc
+  description desc
 
-  description 'Basic project file loader'
+  version '0.3a'
 
-  version '0.2'
-
-  requires_redmine :version_or_higher => '2.3.0'
+  requires_redmine version_or_higher: '2.3.0'
 
   # Commented out because it refused to work in development mode
   default_tracker_alias = 'Tracker'
 
-  settings :default => {
-	:is_private_by_default => false,
-	:tracker_alias => default_tracker_alias,
-	:instant_import_tasks => 10
-  }, :partial => 'settings/loader_settings'
+  settings default: {
+    export: {
+	    sync_versions: false,
+      ignore_fields: {
+        description: false,
+        priority: false,
+        done_ratio: false
+      }
+    },
+    import: {
+	    is_private_by_default: false,
+	    instant_import_tasks: 10,
+	    sync_versions: false,
+	    tracker_alias: default_tracker_alias,
+      redmine_id_alias: 'RID',
+      ignore_fields: {
+        description: false,
+        priority: false,
+        done_ratio: false,
+        due_date: false,
+        estimated_hours: false
+      }
+    },
+  }, partial: 'settings/loader_settings'
 
 
   project_module :project_xml_importer do
-    permission :import_issues_from_xml, :loader => [:new, :create]
-    permission :export_issues_to_xml, :loader => :export
+    permission :import_issues_from_xml, loader: [:new, :create]
+    permission :export_issues_to_xml, loader: :export
   end
 
-  menu :project_menu, :loader, { :controller => 'loader', :action => 'new' },
-    :caption => :menu_caption, :after => :new_issue, :param => :project_id
+  menu :project_menu, :loader, { controller: :loader, action: :new },
+    caption: :menu_caption, after: :new_issue, param: :project_id
 
-  # MS Project used YYYY-MM-DDTHH:MM:SS format. There no support of time zones, so time will be in UTC
   Time::DATE_FORMATS.merge!(
-    :ms_xml => lambda{ |time| time.strftime("%Y-%m-%dT%H:%M:%S") }
+    ms_xml: lambda{ |time| time.strftime("%Y-%m-%dT%H:%M:%S") }
   )
 end
-
