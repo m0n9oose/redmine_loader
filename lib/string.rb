@@ -7,7 +7,6 @@ class String
                when 'due_date'          then 'finish'
                when 'estimated_hours'   then 'duration'
                when 'subject'           then 'title'
-               when 'priority_id'       then 'priority'
                when 'done_ratio'        then 'percentcomplete'
                else self.to_s
                end

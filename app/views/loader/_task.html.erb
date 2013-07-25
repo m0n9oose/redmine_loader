@@ -15,7 +15,7 @@
     <%= h task.uid %>
   </td>
   <td align="left" class="task_subject">
-    <%= (titles[task.subject] == true ? '&nbsp;&nbsp;' : "<span class=\"dup\">#{ titles[task.subject] }</span>").html_safe %>
+    <%= (task.subject.in?(dupes) ? "<span class=\"dup\">#{ dupes.index(task.subject).next }</span>" : '&nbsp;&nbsp;').html_safe %>
     <%= text_field_tag "import[tasks][#{index}][subject]", h(task.subject), {size: 50, class: :task_subject} %>
   </td>
   <td align="left">
@@ -24,12 +24,12 @@
   <td align="left">
     <%= text_field_tag "import[tasks][#{index}][start_date]", h(task.start_date), {type: :date, size: 10, class: 'start_date'} %>
   </td>
-  <% unless 'due_date'.in?(@import_ignore_fields) %>
+  <% unless ignore_field?(:due_date) %>
     <td align="left">
       <%= text_field_tag "import[tasks][#{index}][due_date]", h(task.due_date), {type: :date, size: 10, class: 'end_date'} %>
     </td>
   <% end %>
-  <% unless 'done_ratio'.in?(@import_ignore_fields) %>
+  <% unless ignore_field?(:done_ratio) %>
     <td align="left">
       <%= loader_percent_select_tag task.done_ratio, index %>
     </td>
@@ -37,9 +37,9 @@
   <td>
     <%= loader_user_select_tag @project, task.assigned_to, index %>
   </td>
-  <% unless 'priority_id'.in?(@import_ignore_fields) %>
+  <% unless ignore_field?(:priority) %>
     <td>
-      <%= loader_priority_select_tag task.priority_id, index %>
+      <%= loader_priority_select_tag task.priority, index %>
     </td>
   <% end %>
   <td>

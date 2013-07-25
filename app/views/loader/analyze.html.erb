@@ -11,17 +11,15 @@
         <%= content_tag(:th, l(:name)) %>
         <%= content_tag(:th, l(:tracker)) %>
         <%= content_tag(:th, link_to_function(l(:start_date), 'clearDates(this);', class: 'start_date')) %>
-        <%= content_tag(:th, link_to_function(l(:end_date), 'clearDates(this);', class: 'end_date')) unless 'due_date'.in?(@import_ignore_fields) %>
-        <%= content_tag(:th, '%') unless 'done_ratio'.in?(@import_ignore_fields) %>
+        <%= content_tag(:th, link_to_function(l(:end_date), 'clearDates(this);', class: 'end_date')) %>
+        <%= content_tag(:th, '%') unless ignore_field?(:done_ratio) %>
         <%= content_tag(:th, l(:assigned_to)) %>
-        <%= content_tag(:th, l(:priority)) unless 'priority_id'.in?(@import_ignore_fields) %>
+        <%= content_tag(:th, l(:priority)) unless ignore_field?(:priority) %>
         <th><%= link_to_function l(:field_is_private), 'toggleCheckboxesSelection(this);', class: 'is_private' %></th>
         <%= content_tag(:th, l(:requires)) %>
       </tr>
-      <% titles = {} %>
-      <% duplicates_count(@import, titles) %>
       <% @import.tasks.each_with_index do |task, index| %>
-        <%= render partial: 'task', locals: {task: task, index: index, titles: titles} %>
+        <%= render partial: 'task', locals: {task: task, index: index, dupes: duplicates_count(@import.tasks)} %>
       <% end %>
       <tr>
         <td align="right" colspan="8">
@@ -31,12 +29,8 @@
         <%= content_tag(:td, link_to(l(:back), {controller: 'loader', action: 'new'})) %>
       </tr>
     </table>
-    <% if @dupes > 0 %>
-      <p align="center" colspan="5"><%= l(:warning_text).html_safe %></p>
-    <% end %>
   <% end %>
   <% if @unprocessed_task_ids.any? %>
     <p align='center'><%= t(:duplicates_warning, ids: @unprocessed_task_ids.join(', ')) %></p>
   <% end %>
 <% end %>
-<%= hidden_field_tag("project_id", "#{@project.id}") %>

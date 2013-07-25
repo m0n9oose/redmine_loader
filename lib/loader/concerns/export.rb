@@ -114,17 +114,19 @@ module Loader::Concerns::Export
         }
         xml.Assignments {
           source_issues = @query ? @query_issues : @project.issues
-          source_issues.select { |issue| issue.assigned_to_id? }.each do |issue|
+          source_issues.select { |issue| issue.assigned_to_id? && issue.leaf? }.each do |issue|
             @uid += 1
             xml.Assignment {
-              time = get_scorm_time(issue.estimated_hours)
-              xml.Work time
-              xml.RegularWork time
-              xml.RemainingWork time
+              unless 'estimated_hours'.in?(@export_ignore_fields)
+                time = get_scorm_time(issue.estimated_hours)
+                xml.Work time
+                xml.RegularWork time
+                xml.RemainingWork time
+              end
               xml.UID @uid
               xml.TaskUID @task_id_to_uid[issue.id]
               xml.ResourceUID @resource_id_to_uid[issue.assigned_to_id]
-              #xml.PercentWorkComplete issue.done_ratio
+              xml.PercentWorkComplete issue.done_ratio unless 'done_ratio'.in?(@export_ignore_fields)
               xml.Units 1
             }
           end
@@ -179,12 +181,12 @@ module Loader::Concerns::Export
       xml.UID @uid
       xml.ID id.next
       xml.Name(struct.subject)
-      xml.Notes(struct.description)
+      xml.Notes(struct.description) unless 'description'.in?(@export_ignore_fields)
       xml.Active 1
       xml.IsNull 0
-      xml.CreateDate(struct.created_on.to_s(:ms_xml))
+      xml.CreateDate struct.created_on.to_s(:ms_xml)
       xml.HyperlinkAddress issue_url(struct.issue)
-      xml.Priority(get_priority_value(struct.priority.name))
+      xml.Priority('priority'.in?(@export_ignore_fields) ? 500 : get_priority_value(struct.priority.name))
       start_date = struct.issue.next_working_date(struct.start_date || struct.created_on.to_date)
       xml.Start start_date.to_time.to_s(:ms_xml)
       finish_date = if struct.due_date
@@ -205,20 +207,20 @@ module Loader::Concerns::Export
       xml.LateFinish finish_date.to_time.to_s(:ms_xml)
       time = get_scorm_time(struct.estimated_hours)
       xml.Work time
-      xml.Duration time
-      xml.ManualDuration time
-      xml.RemainingDuration time
-      xml.RemainingWork time
-      xml.DurationFormat 7
+      #xml.Duration time
+      #xml.ManualDuration time
+      #xml.RemainingDuration time
+      #xml.RemainingWork time
+      #xml.DurationFormat 7
       xml.Milestone 0
       xml.FixedCostAccrual 3
       xml.ConstraintType 0
       xml.IgnoreResourceCalendar 0
       parent = struct.leaf? ? 0 : 1
       xml.Summary(parent)
-      xml.Critical(parent)
+      #xml.Critical(parent)
       xml.Rollup(parent)
-      xml.Type(parent)
+      #xml.Type(parent)
       if @export_versions && struct.fixed_version_id
         xml.PredecessorLink {
           xml.PredecessorUID @version_id_to_uid[struct.fixed_version_id]
@@ -235,7 +237,7 @@ module Loader::Concerns::Export
               xml.CrossProject 1
               xml.CrossProjectName relation.issue_from.project.name
             end
-            xml.LinkLag (relation.delay * 4800).to_s
+            xml.LinkLag (relation.delay * 4800)
             xml.LagFormat 7
           }
         end
@@ -249,8 +251,8 @@ module Loader::Concerns::Export
         xml.Value struct.tracker.name
       }
       xml.WBS(struct.outlinenumber)
-      xml.OutlineNumber(struct.outlinenumber)
-      xml.OutlineLevel(struct.outlinelevel)
+      xml.OutlineNumber struct.outlinenumber
+      xml.OutlineLevel struct.outlinelevel
     }
   end
 

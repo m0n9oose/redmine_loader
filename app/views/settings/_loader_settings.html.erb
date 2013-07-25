@@ -1,3 +1,11 @@
+<%= content_tag :p do %>
+  <%= content_tag :label, 'Alias for Redmine issue ID field' %>
+  <%= text_field_tag 'settings[redmine_id_alias]', @settings[:redmine_id_alias] %>
+<% end %>
+<%= content_tag :p do %>
+  <%= content_tag :label, 'Alias for Tracker field' %>
+  <%= text_field_tag 'settings[tracker_alias]', @settings[:tracker_alias] %>
+<% end %>
 <fieldset class="box" id="import_ignore_fields"><legend>Import settings</legend>
   <%= content_tag :p do %>
     <%= content_tag :label, 'Mark issues as private by default' %>
@@ -6,14 +14,6 @@
   <%= content_tag :p do %>
     <%= content_tag :label, 'Sync versions' %>
     <%= check_box_tag "settings[import][sync_versions]", 1, @settings[:import][:sync_versions] %>
-  <% end %>
-  <%= content_tag :p do %>
-    <%= content_tag :label, 'Alias for Redmine issue ID field' %>
-    <%= text_field_tag 'settings[import][redmine_id_alias]', @settings[:import][:redmine_id_alias] %>
-  <% end %>
-  <%= content_tag :p do %>
-    <%= content_tag :label, 'Alias for Tracker field' %>
-    <%= text_field_tag 'settings[import][tracker_alias]', @settings[:import][:tracker_alias] %>
   <% end %>
   <%= content_tag :p do %>
     <%= content_tag :label, 'Max number of tasks to immediately import' %>
@@ -30,7 +30,7 @@
     <% end %>
     <%= content_tag :p do %>
       <%= content_tag :label, 'Priority' %>
-      <%= check_box_tag "settings[import][ignore_fields][priority_id]", 1, @settings[:import][:ignore_fields][:priority_id] %>
+      <%= check_box_tag "settings[import][ignore_fields][priority]", 1, @settings[:import][:ignore_fields][:priority] %>
     <% end %>
     <%= content_tag :p do %>
       <%= content_tag :label, 'Description' %>
@@ -42,7 +42,6 @@
     <% end %>
   </fieldset>
 </fieldset>
-
 
 <fieldset class="box" id="export_ignore_fields"><legend>Export settings</legend>
   <%= content_tag :p do %>
@@ -56,7 +55,7 @@
     <% end %>
     <%= content_tag :p do %>
       <%= content_tag :label, 'Priority' %>
-      <%= check_box_tag "settings[export][ignore_fields][priority_id]", 1, @settings[:export][:ignore_fields][:priority_id] %>
+      <%= check_box_tag "settings[export][ignore_fields][priority]", 1, @settings[:export][:ignore_fields][:priority] %>
     <% end %>
     <%= content_tag :p do %>
       <%= content_tag :label, 'Description' %>
