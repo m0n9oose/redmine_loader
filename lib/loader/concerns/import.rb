@@ -26,24 +26,17 @@ module Loader::Concerns::Import
 
     logger.debug "DEBUG: BEGIN get_tasks_from_xml"
 
-    tracker_alias = @settings[:import][:tracker_alias]
-    redmine_id_alias = @settings[:import][:redmine_id_alias]
-    tracker_field = nil
-    issue_rid = nil
-
-    doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{tracker_alias}']/FieldID").each do |ext_attr|
-      tracker_field = ext_attr.text.to_i
-    end
-
-    doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{redmine_id_alias}']/FieldID").each do |ext_attr|
-      issue_rid = ext_attr.text.to_i
-    end
+    tracker_field = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:import][:tracker_alias]}']/FieldID").try(:text).try(:to_i)
+    issue_rid = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:import][:redmine_id_alias]}']/FieldID").try(:text).try(:to_i)
 
     doc.xpath('Project/Tasks/Task').each do |task|
       begin
         logger.debug "Project/Tasks/Task found"
         struct = ImportTask.new
         struct.uid = task.at('UID').try(:text).try(:to_i)
+        next if struct.uid == 0
+        struct.milestone = task.at('Milestone').try(:text).try(:to_i)
+        next unless struct.milestone.try(:zero?)
         struct.status_id = IssueStatus.default.id
         struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
         struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
@@ -51,37 +44,23 @@ module Loader::Concerns::Import
         struct.start_date = task.at('Start').try(:text).try{|t| t.split("T")[0]}
         struct.due_date = task.at('Finish').try(:text).try{|t| t.split("T")[0]}
         struct.priority_id = task.at('Priority').try(:text)
-
-        task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").each do |tracker_value|
-          struct.tracker_name = tracker_value.text
-        end
-        task.xpath("ExtendedAttribute[FieldID='#{issue_rid}']/Value").each do |issue_rid|
-          struct.tid = issue_rid.try(:text).try(:to_i)
-        end
-
-        struct.milestone = task.at('Milestone').try(:text).try(:to_i)
-        next unless struct.milestone.zero?
-        struct.estimated_hours = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') unless !struct.milestone.try(:zero?)
+        struct.tracker_name = task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").try(:text)
+        struct.tid = task.xpath("ExtendedAttribute[FieldID='#{issue_rid}']/Value").try(:text).try(:to_i)
+        struct.estimated_hours = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') if struct.milestone.try(:zero?)
         struct.done_ratio = task.at('PercentComplete').try(:text).try(:to_i)
         struct.description = task.at('Notes').try(:text).try(:strip)
-        struct.predecessors = []
-        struct.delays = []
-        task.xpath('PredecessorLink').each do |predecessor|
-          struct.predecessors.push(predecessor.at('PredecessorUID').try(:text).try(:to_i))
-          struct.delays.push(predecessor.at('LinkLag').try(:text).try(:to_i))
-        end
+        struct.predecessors = task.xpath('PredecessorLink').map { |predecessor| predecessor.at('PredecessorUID').try(:text).try(:to_i) }
+        struct.delays = task.xpath('PredecessorLink').map { |predecessor| predecessor.at('LinkLag').try(:text).try(:to_i) }
 
       tasks.push(struct)
 
       rescue => error
-        # Ignore errors; they tend to indicate malformed tasks, or at least,
-        # XML file task entries that we do not understand.
         logger.debug "DEBUG: Unrecovered error getting tasks: #{error}"
         @unprocessed_task_ids.push task.at('ID').try(:text).try(:to_i)
       end
     end
 
-    tasks = tasks.drop(1).compact.uniq.sort_by(&:uid)
+    tasks = tasks.compact.uniq.sort_by(&:uid)
 
     set_assignment_to_task(doc, tasks)
     logger.debug "DEBUG: Tasks: #{tasks.inspect}"
@@ -94,11 +73,11 @@ module Loader::Concerns::Import
     uid_tasks = tasks.map(&:uid)
     resource_by_user = get_bind_resource_users(doc)
     doc.xpath('Project/Assignments/Assignment').each do |as|
+      resource_id = as.at('ResourceUID').text.to_i
+      next if resource_id == Import::NOT_USER_ASSIGNED
       task_uid = as.at('TaskUID').text.to_i
       task = tasks.detect { |task| task.uid == task_uid }
       next unless task
-      resource_id = as.at('ResourceUID').text.to_i
-      next if resource_id == Import::NOT_USER_ASSIGNED
       task.assigned_to = resource_by_user[resource_id]
     end
   end

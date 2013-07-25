@@ -1,4 +1,4 @@
-<%= javascript_include_tag 'loader.js', plugin: 'redmine_loader' %>
+<%= javascript_include_tag :loader, plugin: 'redmine_loader' %>
 <h1><%= l(:import_tasks) %></h1>
 <%= form_for(:import, {url: project_loader_path, html: {id: 'import', multipart: true}}) do |f| %>
   <%= hidden_field_tag "hashed_name", @import.hashed_name %>
@@ -6,16 +6,16 @@
     <p><%= l(:about_analyzed) %></p>
     <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
       <tr valign="middle" align="center" class="info">
-        <th><%= link_to_function l(:import), 'toggleIssuesSelection(this);', class: 'import' %></th>
+        <th><%= link_to_function l(:import), 'toggleCheckboxesSelection(this);', class: 'import' %></th>
         <th>UID</th>
         <%= content_tag(:th, l(:name)) %>
         <%= content_tag(:th, l(:tracker)) %>
-        <%= content_tag(:th, l(:start_date)) %>
-        <%= content_tag(:th, l(:end_date)) unless 'due_date'.in?(@import_ignore_fields) %>
+        <%= content_tag(:th, link_to_function(l(:start_date), 'clearDates(this);', class: 'start_date')) %>
+        <%= content_tag(:th, link_to_function(l(:end_date), 'clearDates(this);', class: 'end_date')) unless 'due_date'.in?(@import_ignore_fields) %>
         <%= content_tag(:th, '%') unless 'done_ratio'.in?(@import_ignore_fields) %>
         <%= content_tag(:th, l(:assigned_to)) %>
         <%= content_tag(:th, l(:priority)) unless 'priority_id'.in?(@import_ignore_fields) %>
-        <th><%= link_to_function l(:field_is_private), 'toggleIssuesSelection(this);', class: 'is_private' %></th>
+        <th><%= link_to_function l(:field_is_private), 'toggleCheckboxesSelection(this);', class: 'is_private' %></th>
         <%= content_tag(:th, l(:requires)) %>
       </tr>
       <% titles = {} %>

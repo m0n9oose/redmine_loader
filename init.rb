@@ -17,7 +17,7 @@ Redmine::Plugin.register :redmine_loader do
   name desc
   description desc
 
-  version '0.3a'
+  version '0.3b'
 
   requires_redmine version_or_higher: '2.3.0'
 

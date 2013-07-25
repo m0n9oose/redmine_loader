@@ -22,11 +22,11 @@
     <%= loader_tracker_select_tag @project, task.tracker_name, index %>
   </td>
   <td align="left">
-    <%= text_field_tag "import[tasks][#{index}][start_date]", h(task.start_date), {type: :date, size: 10} %>
+    <%= text_field_tag "import[tasks][#{index}][start_date]", h(task.start_date), {type: :date, size: 10, class: 'start_date'} %>
   </td>
   <% unless 'due_date'.in?(@import_ignore_fields) %>
     <td align="left">
-      <%= text_field_tag "import[tasks][#{index}][due_date]", h(task.due_date), {type: :date, size: 10} %>
+      <%= text_field_tag "import[tasks][#{index}][due_date]", h(task.due_date), {type: :date, size: 10, class: 'end_date'} %>
     </td>
   <% end %>
   <% unless 'done_ratio'.in?(@import_ignore_fields) %>

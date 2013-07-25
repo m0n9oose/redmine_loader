@@ -2,45 +2,45 @@ module Loader::Concerns::Export
   extend ActiveSupport::Concern
 
   def generate_xml
-    @id = 0
+    @uid = 1
     request_from = Rails.application.routes.recognize_path(request.referrer)
     get_sorted_query unless request_from[:controller] =~ /loader/
+    @resource_id_to_uid = {}
+    @task_id_to_uid = {}
+    @version_id_to_uid = {}
+    @calendar_id_to_uid = {}
 
     export = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |xml|
-      @used_issues = {}
       resources = @project.assignable_users
       xml.Project {
         xml.Title @project.name
-        #xml.CreationDate @project.created_on.to_s(:ms_xml)
-        #xml.StartDate @project.created_on.to_s(:ms_xml)
         xml.ExtendedAttributes {
           xml.ExtendedAttribute {
-            xml.FieldID '188744001'
+            xml.FieldID 188744001
             xml.FieldName 'Text15'
-            xml.Alias 'RID'
+            xml.Alias @settings[:import][:redmine_id_alias] # TODO: need to move out these setting from import namespace
           }
           xml.ExtendedAttribute {
-            xml.FieldID '188744002'
+            xml.FieldID 188744002
             xml.FieldName 'Text16'
-            xml.Alias 'Tracker'
+            xml.Alias @settings[:import][:tracker_alias] # TODO: need to move out these setting from import namespace
           }
         }
         xml.Calendars {
           xml.Calendar {
-            @id += 1
-            xml.UID @id
+            xml.UID @uid
             xml.Name 'Standard'
-            xml.IsBaseCalendar '1'
-            xml.IsBaselineCalendar '0'
-            xml.BaseCalendarUID '0'
+            xml.IsBaseCalendar 1
+            xml.IsBaselineCalendar 0
+            xml.BaseCalendarUID 0
             xml.Weekdays {
               (1..7).each do |day|
                 xml.Weekday {
                   xml.DayType day
                   if day.in?([1, 7])
-                    xml.DayWorking '0'
+                    xml.DayWorking 0
                   else
-                    xml.DayWorking '1'
+                    xml.DayWorking 1
                     xml.WorkingTimes {
                       xml.WorkingTime {
                         xml.FromTime '09:00:00'
@@ -56,27 +56,28 @@ module Loader::Concerns::Export
               end
             }
           }
+          resources.each do |resource|
+            @uid += 1
+            @calendar_id_to_uid[resource.id] = @uid
+            xml.Calendar {
+              xml.UID @uid
+              xml.Name resource.login
+              xml.IsBaseCalendar 0
+              xml.IsBaselineCalendar 0
+              xml.BaseCalendarUID 1
+            }
+          end
         }
         xml.Tasks {
           xml.Task {
-            xml.UID "0"
-            xml.ID "0"
-            xml.ConstraintType "0"
-            xml.OutlineNumber "0"
-            xml.OutlineLevel "0"
+            xml.UID 0
+            xml.ID 0
+            xml.ConstraintType 0
+            xml.OutlineNumber 0
+            xml.OutlineLevel 0
             xml.Name @project.name
-            xml.Type "1"
+            xml.Type 1
             xml.CreateDate @project.created_on.to_s(:ms_xml)
-            resources.each do |resource|
-              @id += 1
-              xml.Calendar {
-                xml.UID resource.id
-                xml.Name resource.login
-                xml.IsBaseCalendar '0'
-                xml.IsBaselineCalendar '0'
-                xml.BaseCalendarUID '1'
-              }
-            end
           }
 
           if @export_versions
@@ -90,49 +91,47 @@ module Loader::Concerns::Export
         }
         xml.Resources {
           xml.Resource {
-            xml.UID "0"
-            xml.ID "0"
-            xml.Type "1"
-            xml.IsNull "0"
+            xml.UID 0
+            xml.ID 0
+            xml.Type 1
+            xml.IsNull 0
           }
-          resources.each do |resource|
-            @id += 1
+          resources.each_with_index do |resource, id|
+            @uid += 1
+            @resource_id_to_uid[resource.id] = @uid
             xml.Resource {
-              xml.UID resource.id
-              xml.ID resource.id
+              xml.UID @uid
+              xml.ID id.next
               xml.Name resource.login
-              xml.Type "1"
-              xml.IsNull "0"
-              xml.MaxUnits "1.00"
-              xml.PeakUnits "1.00"
-              xml.IsEnterprise '0'
-              xml.CalendarUID resource.id
+              xml.Type 1
+              xml.IsNull 0
+              xml.MaxUnits 1.00
+              xml.PeakUnits 1.00
+              xml.IsEnterprise 1
+              xml.CalendarUID @calendar_id_to_uid[resource.id]
             }
           end
         }
         xml.Assignments {
           source_issues = @query ? @query_issues : @project.issues
           source_issues.select { |issue| issue.assigned_to_id? }.each do |issue|
-            @id += 1
+            @uid += 1
             xml.Assignment {
               time = get_scorm_time(issue.estimated_hours)
               xml.Work time
               xml.RegularWork time
               xml.RemainingWork time
-              xml.DurationFormat '7'
-              xml.UID @id
-              xml.TaskUID issue.id
-              xml.ResourceUID issue.assigned_to_id
-              xml.HasFixedRateUnits '1'
-              xml.PercentWorkComplete issue.done_ratio
-              xml.Units "1"
+              xml.UID @uid
+              xml.TaskUID @task_id_to_uid[issue.id]
+              xml.ResourceUID @resource_id_to_uid[issue.assigned_to_id]
+              #xml.PercentWorkComplete issue.done_ratio
+              xml.Units 1
             }
           end
         }
       }
     end
 
-    #To save the created xml with the name of the project
     filename = "#{@project.name}-#{Time.now.strftime("%Y-%m-%d-%H-%M")}.xml"
     return export.to_xml, filename
   end
@@ -146,17 +145,12 @@ module Loader::Concerns::Export
         outlinenumber = if issue.child?
           "#{nested_issues.detect{ |struct| struct.id == issue.parent_id }.try(:outlinenumber)}.#{leveled_tasks[level].index(issue).next}"
         else
-          puts versions_count.nil?
           (leveled_tasks[level].index(issue).next + versions_count).to_s
         end
         nested_issues << ExportTask.new(issue, issue.level.next, outlinenumber)
       end
     end
     return nested_issues.sort_by! &:outlinenumber
-  end
-
-  def get_child_index(issue)
-    issue.parent.child_ids.index(issue.id).next
   end
 
   def get_priority_value(priority_name)
@@ -179,15 +173,15 @@ module Loader::Concerns::Export
   end
 
   def write_task(xml, struct, id)
-    return if @used_issues.has_key?(struct.id)
+    @uid += 1
+    @task_id_to_uid[struct.id] = @uid
     xml.Task {
-      @used_issues[struct.id] = true
-      xml.UID(struct.id)
+      xml.UID @uid
       xml.ID id.next
       xml.Name(struct.subject)
       xml.Notes(struct.description)
-      xml.Active '1'
-      xml.IsNull '0'
+      xml.Active 1
+      xml.IsNull 0
       xml.CreateDate(struct.created_on.to_s(:ms_xml))
       xml.HyperlinkAddress issue_url(struct.issue)
       xml.Priority(get_priority_value(struct.priority.name))
@@ -215,12 +209,11 @@ module Loader::Concerns::Export
       xml.ManualDuration time
       xml.RemainingDuration time
       xml.RemainingWork time
-      xml.DurationFormat '7'
-      xml.Milestone '0'
-      xml.FixedCostAccrual "3"
-      xml.ConstraintType "0"
-      #xml.ConstraintDate start_date.to_time.to_s(:ms_xml)
-      xml.IgnoreResourceCalendar '0'
+      xml.DurationFormat 7
+      xml.Milestone 0
+      xml.FixedCostAccrual 3
+      xml.ConstraintType 0
+      xml.IgnoreResourceCalendar 0
       parent = struct.leaf? ? 0 : 1
       xml.Summary(parent)
       xml.Critical(parent)
@@ -228,31 +221,31 @@ module Loader::Concerns::Export
       xml.Type(parent)
       if @export_versions && struct.fixed_version_id
         xml.PredecessorLink {
-          xml.PredecessorUID struct.fixed_version_id
-          xml.CrossProject '0'
+          xml.PredecessorUID @version_id_to_uid[struct.fixed_version_id]
+          xml.CrossProject 0
         }
       end
       if struct.relations_to_ids.any?
         struct.relations.select { |ir| ir.relation_type == 'precedes' }.each do |relation|
           xml.PredecessorLink {
-            xml.PredecessorUID relation.issue_from_id
+            xml.PredecessorUID @task_id_to_uid[relation.issue_from_id]
             if struct.project_id == relation.issue_from.project_id
-              xml.CrossProject '0'
+              xml.CrossProject 0
             else
-              xml.CrossProject '1'
+              xml.CrossProject 1
               xml.CrossProjectName relation.issue_from.project.name
             end
             xml.LinkLag (relation.delay * 4800).to_s
-            xml.LagFormat '7'
+            xml.LagFormat 7
           }
         end
       end
       xml.ExtendedAttribute {
-        xml.FieldID '188744001'
+        xml.FieldID 188744001
         xml.Value struct.id
       }
       xml.ExtendedAttribute {
-        xml.FieldID '188744002'
+        xml.FieldID 188744002
         xml.Value struct.tracker.name
       }
       xml.WBS(struct.outlinenumber)
@@ -263,32 +256,32 @@ module Loader::Concerns::Export
 
   def write_version(xml, version)
     xml.Task {
-      @id += 1
-      xml.UID(version.id)
-      xml.ID(@id)
-      xml.Name(version.name)
-      xml.Notes(version.description)
-      xml.CreateDate(version.created_on.to_s(:ms_xml))
+      @uid += 1
+      @version_id_to_uid[version.id] = @uid
+      xml.UID @uid
+      xml.ID version.id
+      xml.Name version.name
+      xml.Notes version.description
+      xml.CreateDate version.created_on.to_s(:ms_xml)
       if version.effective_date
-        xml.Start(version.effective_date.to_time.to_s(:ms_xml))
-        xml.Finish(version.effective_date.to_time.to_s(:ms_xml))
+        xml.Start version.effective_date.to_time.to_s(:ms_xml)
+        xml.Finish version.effective_date.to_time.to_s(:ms_xml)
       end
-      xml.Milestone "1"
-      xml.FixedCostAccrual("3")
-      xml.ConstraintType("4")
-      xml.ConstraintDate(version.try(:effective_date).try(:to_time).try(:to_s, :ms_xml))
-      xml.Summary("1")
-      xml.Critical("1")
-      xml.Rollup("1")
-      xml.Type("1")
+      xml.Milestone 1
+      xml.FixedCostAccrual 3
+      xml.ConstraintType 4
+      xml.ConstraintDate version.try(:effective_date).try(:to_time).try(:to_s, :ms_xml)
+      xml.Summary 1
+      xml.Critical 1
+      xml.Rollup 1
+      xml.Type 1
       xml.ExtendedAttribute {
-        xml.FieldID '188744001'
+        xml.FieldID 188744001
         xml.Value version.id
       }
-
-      xml.WBS(@id)
-      xml.OutlineNumber(@id)
-      xml.OutlineLevel("1")
+      xml.WBS @uid
+      xml.OutlineNumber @uid
+      xml.OutlineLevel 1
     }
   end
 end
