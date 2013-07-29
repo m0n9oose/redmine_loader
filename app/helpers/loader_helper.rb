@@ -4,7 +4,7 @@ module LoaderHelper
   end
 
   def loader_tracker_select_tag(project, tracker_name, index)
-    tracker_id = tracker_name.present? ? @map_trackers[tracker_name] : Setting.plugin_redmine_loader[:import][:tracker_id]
+    tracker_id = tracker_name.present? ? @map_trackers[tracker_name] : @settings[:import][:tracker_id]
     select_tag "import[tasks][#{index}][tracker_id]", options_from_collection_for_select(project.trackers, :id, :name, tracker_id)
   end
 
@@ -21,11 +21,6 @@ module LoaderHelper
                when 801..1000 then 'Immediate'
                end
     select_tag "import[tasks][#{index}][priority]", options_from_collection_for_select(IssuePriority.active, :id, :name, priority_name)
-  end
-
-  def duplicates_count(tasks)
-    subjects = tasks.map(&:subject)
-    subjects.select{ |subj| subjects.count(subj) > 1 }.uniq
   end
 
   def ignore_field?(field)

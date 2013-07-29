@@ -1,4 +1,8 @@
 <%= content_tag :p do %>
+  <%= content_tag :label, 'Alias for Redmine issue status' %>
+  <%= text_field_tag 'settings[redmine_task_status]', @settings[:redmine_task_status] %>
+<% end %>
+<%= content_tag :p do %>
   <%= content_tag :label, 'Alias for Redmine issue ID field' %>
   <%= text_field_tag 'settings[redmine_id_alias]', @settings[:redmine_id_alias] %>
 <% end %>

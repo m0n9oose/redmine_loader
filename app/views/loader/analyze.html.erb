@@ -19,7 +19,7 @@
         <%= content_tag(:th, l(:requires)) %>
       </tr>
       <% @import.tasks.each_with_index do |task, index| %>
-        <%= render partial: 'task', locals: {task: task, index: index, dupes: duplicates_count(@import.tasks)} %>
+        <%= render partial: 'task', locals: {task: task, index: index, dupes: @duplicates} %>
       <% end %>
       <tr>
         <td align="right" colspan="8">

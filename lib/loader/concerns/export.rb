@@ -16,14 +16,19 @@ module Loader::Concerns::Export
         xml.Title @project.name
         xml.ExtendedAttributes {
           xml.ExtendedAttribute {
+            xml.FieldID 188744000
+            xml.FieldName 'Text14'
+            xml.Alias @settings[:redmine_task_status]
+          }
+          xml.ExtendedAttribute {
             xml.FieldID 188744001
             xml.FieldName 'Text15'
-            xml.Alias @settings[:import][:redmine_id_alias] # TODO: need to move out these setting from import namespace
+            xml.Alias @settings[:redmine_id_alias]
           }
           xml.ExtendedAttribute {
             xml.FieldID 188744002
             xml.FieldName 'Text16'
-            xml.Alias @settings[:import][:tracker_alias] # TODO: need to move out these setting from import namespace
+            xml.Alias @settings[:tracker_alias]
           }
         }
         xml.Calendars {
@@ -117,7 +122,7 @@ module Loader::Concerns::Export
           source_issues.select { |issue| issue.assigned_to_id? && issue.leaf? }.each do |issue|
             @uid += 1
             xml.Assignment {
-              unless 'estimated_hours'.in?(@export_ignore_fields)
+              unless 'estimated_hours'.in?(@export_ignore_fields) && !issue.leaf?
                 time = get_scorm_time(issue.estimated_hours)
                 xml.Work time
                 xml.RegularWork time
@@ -242,6 +247,10 @@ module Loader::Concerns::Export
           }
         end
       end
+      xml.ExtendedAttribute {
+        xml.FieldID 188744000
+        xml.Value struct.status.name
+      }
       xml.ExtendedAttribute {
         xml.FieldID 188744001
         xml.Value struct.id

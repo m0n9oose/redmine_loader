@@ -23,18 +23,16 @@ class Import
     # keep track of the outlineNumbers to set the parent_id
     outlinenumber_to_issue_id = {}
 
-    default_tracker_id = Setting.plugin_redmine_loader[:import][:tracker_id]
-
     Issue.transaction do
       to_import.each do |source_issue|
         unless source_issue.milestone.to_i == 1
           issue = update_existing ? Issue.where("id = ? AND project_id = ?", source_issue.tid, project_id).first_or_initialize : Issue.new
-          issue.tracker_id = source_issue.tracker_id || default_tracker_id
+          issue.tracker_id = source_issue.tracker_id
           issue.subject = source_issue.subject.slice(0, 246) + '_imported' # Max length of this field is 255
           issue.project_id = project_id
           issue.author_id = user.id
           issue.is_private = source_issue.try(:is_private) ? 1 : 0
-          %w(start_date due_date description done_ratio estimated_hours).each do |field|
+          %w(start_date due_date description done_ratio estimated_hours status_id).each do |field|
             eval("issue.#{field} = source_issue.try(:#{field})")
           end
           if issue.due_date.nil? && issue.start_date

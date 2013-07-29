@@ -12,6 +12,7 @@
     <%= hidden_field_tag "import[tasks][#{index}][delays]", h(task.delays.join(', ')) %>
     <%= hidden_field_tag "import[tasks][#{index}][milestone]", h(task.milestone) %>
     <%= hidden_field_tag "import[tasks][#{index}][predecessors]", h(task.predecessors.join(', ')) %>
+    <%= hidden_field_tag "import[tasks][#{index}][status_id]", h(task.status_id) %>
     <%= h task.uid %>
   </td>
   <td align="left" class="task_subject">

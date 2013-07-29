@@ -26,8 +26,10 @@ module Loader::Concerns::Import
 
     logger.debug "DEBUG: BEGIN get_tasks_from_xml"
 
-    tracker_field = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:import][:tracker_alias]}']/FieldID").try(:text).try(:to_i)
-    issue_rid = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:import][:redmine_id_alias]}']/FieldID").try(:text).try(:to_i)
+    tracker_field = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:tracker_alias]}']/FieldID").try(:text).try(:to_i)
+    issue_rid = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:redmine_id_alias]}']/FieldID").try(:text).try(:to_i)
+    redmine_task_status = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:redmine_task_status]}']/FieldID").try(:text).try(:to_i)
+    default_issue_status_id = IssueStatus.default.id
 
     doc.xpath('Project/Tasks/Task').each do |task|
       begin
@@ -37,7 +39,8 @@ module Loader::Concerns::Import
         next if struct.uid == 0
         struct.milestone = task.at('Milestone').try(:text).try(:to_i)
         next unless struct.milestone.try(:zero?)
-        struct.status_id = IssueStatus.default.id
+        status_name = task.xpath("ExtendedAttribute[FieldID='#{redmine_task_status}']/Value").try(:text)
+        struct.status_id = status_name.present? ? IssueStatus.find_by_name(status_name).id : default_issue_status_id
         struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
         struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
         struct.subject = task.at('Name').try(:text).try(:strip)
@@ -46,13 +49,13 @@ module Loader::Concerns::Import
         struct.priority = task.at('Priority').try(:text)
         struct.tracker_name = task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").try(:text)
         struct.tid = task.xpath("ExtendedAttribute[FieldID='#{issue_rid}']/Value").try(:text).try(:to_i)
-        struct.estimated_hours = task.at('Duration').text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') if struct.milestone.try(:zero?)
+        struct.estimated_hours = task.at('Duration').try{ |e| e.text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') } if struct.milestone.try(:zero?)
         struct.done_ratio = task.at('PercentComplete').try(:text).try(:to_i)
         struct.description = task.at('Notes').try(:text).try(:strip)
         struct.predecessors = task.xpath('PredecessorLink').map { |predecessor| predecessor.at('PredecessorUID').try(:text).try(:to_i) }
         struct.delays = task.xpath('PredecessorLink').map { |predecessor| predecessor.at('LinkLag').try(:text).try(:to_i) }
 
-      tasks.push(struct)
+        tasks.push(struct)
 
       rescue => error
         logger.debug "DEBUG: Unrecovered error getting tasks: #{error}"

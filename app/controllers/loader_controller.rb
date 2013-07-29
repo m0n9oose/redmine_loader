@@ -39,6 +39,9 @@ class LoaderController < ApplicationController
           @import.tasks = get_tasks_from_xml(xmldoc)
         end
 
+        subjects = @import.tasks.map(&:subject)
+        @duplicates = subjects.select{ |subj| subjects.count(subj) > 1 }.uniq
+
         flash[:notice] = l(:tasks_read_successfully)
       else
         flash[:error] = l(:choose_file_warning)
@@ -75,7 +78,7 @@ class LoaderController < ApplicationController
     end
 
     # Right, good to go! Do the import.
-#    begin
+    begin
       milestones = tasks_to_import.select { |task| task.milestone == '1' }
       issues = tasks_to_import - milestones
       issues_info = tasks_to_import.map { |issue| {title: issue.subject, uid: issue.uid, outlinenumber: issue.outlinenumber, predecessors: issue.predecessors} }
@@ -107,10 +110,10 @@ class LoaderController < ApplicationController
 
         flash[:notice] = t(:your_tasks_being_imported)
       end
-#    rescue => error
-#      flash[:error] = l(:unable_import) + error.to_s
-#      logger.debug "DEBUG: Unable to import tasks: #{ error }"
-#   end
+    rescue => error
+      flash[:error] = l(:unable_import) + error.to_s
+      logger.debug "DEBUG: Unable to import tasks: #{ error }"
+   end
 
     redirect_to new_project_loader_path
   end
