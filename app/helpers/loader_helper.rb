@@ -4,7 +4,12 @@ module LoaderHelper
   end
 
   def loader_tracker_select_tag(project, tracker_name, index)
-    tracker_id = tracker_name.present? ? @map_trackers[tracker_name] : @settings[:import][:tracker_id]
+    map_trackers = Hash[@project.trackers.map { |tracker| [tracker.name, tracker.id] }]
+    tracker_id = if map_trackers.has_key?(tracker_name)
+                   map_trackers[tracker_name]
+                 else
+                   @settings[:import][:tracker_id]
+                 end
     select_tag "import[tasks][#{index}][tracker_id]", options_from_collection_for_select(project.trackers, :id, :name, tracker_id)
   end
 
@@ -23,7 +28,11 @@ module LoaderHelper
     select_tag "import[tasks][#{index}][priority]", options_from_collection_for_select(IssuePriority.active, :id, :name, priority_name)
   end
 
-  def ignore_field?(field)
-    field.to_s.in?(@import_ignore_fields)
+  def ignore_field?(field, way)
+    field.to_s.in?(@ignore_fields.send(:fetch, way.to_sym))
+  end
+
+  def duplicate_index task_subject
+    @duplicates.index(task_subject).next if task_subject.in?(@duplicates)
   end
 end

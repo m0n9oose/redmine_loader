@@ -1,5 +1,5 @@
 $(document).ready(function(){
-  $('.dup').parent().parent().each(function() {this.style.backgroundColor = "rgb(255, 190, 190)"});
+  $('.dup').effect("highlight", {color:"#FF7373"}, 2200);
 });
 
 function toggleCheckboxesSelection(el) {

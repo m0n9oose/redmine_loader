@@ -58,6 +58,10 @@
       <%= check_box_tag "settings[export][ignore_fields][estimated_hours]", 1, @settings[:export][:ignore_fields][:estimated_hours] %>
     <% end %>
     <%= content_tag :p do %>
+      <%= content_tag :label, 'Spent hours' %>
+      <%= check_box_tag "settings[export][ignore_fields][spent_hours]", 1, @settings[:export][:ignore_fields][:spent_hours] %>
+    <% end %>
+    <%= content_tag :p do %>
       <%= content_tag :label, 'Priority' %>
       <%= check_box_tag "settings[export][ignore_fields][priority]", 1, @settings[:export][:ignore_fields][:priority] %>
     <% end %>

@@ -3,7 +3,6 @@
     <%= check_box_tag("import[tasks][#{index}][import]", '1', true, {class: 'import'}) %>
   </td>
   <td>
-    <%= hidden_field_tag "import[tasks][#{index}][uid]", h(task.uid) %>
     <%= hidden_field_tag "import[tasks][#{index}][tid]", h(task.tid) %>
     <%= hidden_field_tag "import[tasks][#{index}][level]", h(task.level) %>
     <%= hidden_field_tag "import[tasks][#{index}][outlinenumber]", h(task.outlinenumber) %>
@@ -13,10 +12,11 @@
     <%= hidden_field_tag "import[tasks][#{index}][milestone]", h(task.milestone) %>
     <%= hidden_field_tag "import[tasks][#{index}][predecessors]", h(task.predecessors.join(', ')) %>
     <%= hidden_field_tag "import[tasks][#{index}][status_id]", h(task.status_id) %>
-    <%= h task.uid %>
+    <%= hidden_field_tag "import[tasks][#{index}][spent_hours]", h(task.spent_hours) unless ignore_field?(:spent_hours, :import) %>
+    <%= text_field_tag "import[tasks][#{index}][uid]", h(task.uid), disabled: true, style: 'width:3em' %>
   </td>
   <td align="left" class="task_subject">
-    <%= (task.subject.in?(dupes) ? "<span class=\"dup\">#{ dupes.index(task.subject).next }</span>" : '&nbsp;&nbsp;').html_safe %>
+    <%= content_tag(:span, duplicate_index(task.subject), class: 'dup-index') %>
     <%= text_field_tag "import[tasks][#{index}][subject]", h(task.subject), {size: 50, class: :task_subject} %>
   </td>
   <td align="left">
@@ -25,12 +25,12 @@
   <td align="left">
     <%= text_field_tag "import[tasks][#{index}][start_date]", h(task.start_date), {type: :date, size: 10, class: 'start_date'} %>
   </td>
-  <% unless ignore_field?(:due_date) %>
+  <% unless ignore_field?(:due_date, :import) %>
     <td align="left">
       <%= text_field_tag "import[tasks][#{index}][due_date]", h(task.due_date), {type: :date, size: 10, class: 'end_date'} %>
     </td>
   <% end %>
-  <% unless ignore_field?(:done_ratio) %>
+  <% unless ignore_field?(:done_ratio, :import) %>
     <td align="left">
       <%= loader_percent_select_tag task.done_ratio, index %>
     </td>
@@ -38,7 +38,7 @@
   <td>
     <%= loader_user_select_tag @project, task.assigned_to, index %>
   </td>
-  <% unless ignore_field?(:priority) %>
+  <% unless ignore_field?(:priority, :import) %>
     <td>
       <%= loader_priority_select_tag task.priority, index %>
     </td>

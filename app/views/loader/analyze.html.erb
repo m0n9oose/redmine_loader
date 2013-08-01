@@ -1,9 +1,13 @@
 <%= javascript_include_tag :loader, plugin: 'redmine_loader' %>
+<%= stylesheet_link_tag 'loader', plugin: 'redmine_loader' %>
 <h1><%= l(:import_tasks) %></h1>
 <%= form_for(:import, {url: project_loader_path, html: {id: 'import', multipart: true}}) do |f| %>
   <%= hidden_field_tag "hashed_name", @import.hashed_name %>
   <% if @import.tasks.any? %>
     <p><%= l(:about_analyzed) %></p>
+    <% if @duplicates.any? %>
+      <p class='dup' align="center" colspan="5"><%= l(:warning_text).html_safe %></p>
+    <% end %>
     <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
       <tr valign="middle" align="center" class="info">
         <th><%= link_to_function l(:import), 'toggleCheckboxesSelection(this);', class: 'import' %></th>
@@ -12,14 +16,14 @@
         <%= content_tag(:th, l(:tracker)) %>
         <%= content_tag(:th, link_to_function(l(:start_date), 'clearDates(this);', class: 'start_date')) %>
         <%= content_tag(:th, link_to_function(l(:end_date), 'clearDates(this);', class: 'end_date')) %>
-        <%= content_tag(:th, '%') unless ignore_field?(:done_ratio) %>
+        <%= content_tag(:th, '%') unless ignore_field?(:done_ratio, :import) %>
         <%= content_tag(:th, l(:assigned_to)) %>
-        <%= content_tag(:th, l(:priority)) unless ignore_field?(:priority) %>
+        <%= content_tag(:th, l(:priority)) unless ignore_field?(:priority, :import) %>
         <th><%= link_to_function l(:field_is_private), 'toggleCheckboxesSelection(this);', class: 'is_private' %></th>
         <%= content_tag(:th, l(:requires)) %>
       </tr>
       <% @import.tasks.each_with_index do |task, index| %>
-        <%= render partial: 'task', locals: {task: task, index: index, dupes: @duplicates} %>
+        <%= render partial: 'task', locals: {task: task, index: index} %>
       <% end %>
       <tr>
         <td align="right" colspan="8">

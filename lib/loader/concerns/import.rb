@@ -5,9 +5,9 @@ module Loader::Concerns::Import
     tasks_to_import = []
     raw_tasks.each do |index, task|
       struct = ImportTask.new
-      fields = %w(tid subject status_id level outlinenumber code estimated_hours start_date due_date priority done_ratio predecessors delays assigned_to parent_id description milestone tracker_id is_private uid)
+      fields = %w(tid subject status_id level outlinenumber code estimated_hours start_date due_date priority done_ratio predecessors delays assigned_to parent_id description milestone tracker_id is_private uid spent_hours)
 
-      (fields - @import_ignore_fields).each do |field|
+      (fields - @ignore_fields[:import]).each do |field|
         eval("struct.#{field} = task[:#{field}]#{".try(:split, ', ')" if field.in?(%w(predecessors delays))}")
       end
       struct.status_id ||= IssueStatus.default
@@ -46,6 +46,7 @@ module Loader::Concerns::Import
         struct.subject = task.at('Name').try(:text).try(:strip)
         struct.start_date = task.at('Start').try(:text).try{|t| t.split("T")[0]}
         struct.due_date = task.at('Finish').try(:text).try{|t| t.split("T")[0]}
+        struct.spent_hours = task.at('ActualWork').try{ |e| e.text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') }
         struct.priority = task.at('Priority').try(:text)
         struct.tracker_name = task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").try(:text)
         struct.tid = task.xpath("ExtendedAttribute[FieldID='#{issue_rid}']/Value").try(:text).try(:to_i)

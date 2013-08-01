@@ -27,7 +27,6 @@ class LoaderController < ApplicationController
       xmlfile = params[:import][:xmlfile].try(:tempfile)
       if xmlfile
         @import = Import.new
-        @map_trackers = Hash[Tracker.all.map { |tracker| [tracker.name, tracker.id] }]
 
         byte = xmlfile.getc
         xmlfile.rewind
@@ -143,11 +142,15 @@ class LoaderController < ApplicationController
 
   def get_import_settings
     @is_private_by_default = @settings[:import][:is_private_by_default]
-    @import_ignore_fields = @settings[:import][:ignore_fields].select{ |attr, val| val == "1" }.keys
+    get_ignore_fields(:import)
   end
 
   def get_export_settings
-    @export_ignore_fields = @settings[:export][:ignore_fields].select{ |attr, val| val == "1" }.keys
     @export_versions = @settings[:export][:sync_versions]
+    get_ignore_fields(:export)
+  end
+
+  def get_ignore_fields(way)
+    @ignore_fields = { way.to_sym => @settings[way.to_sym][:ignore_fields].select { |attr, val| val == '1' }.keys }
   end
 end

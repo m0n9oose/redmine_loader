@@ -1,3 +1,4 @@
 .right { float: right; }
 .left { float: left; }
 .half { margin: 10px; width: 45%; }
+.dup-index { display: inline-block; width: 2em; text-align: right; }

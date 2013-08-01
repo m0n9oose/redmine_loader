@@ -1,5 +1,6 @@
 module Loader::Concerns::Export
   extend ActiveSupport::Concern
+  include LoaderHelper
 
   def generate_xml
     @uid = 1
@@ -102,6 +103,7 @@ module Loader::Concerns::Export
             xml.IsNull 0
           }
           resources.each_with_index do |resource, id|
+            spent_time = TimeEntry.where(user_id: resource.id).inject(0){|sum, te| sum + te.hours }
             @uid += 1
             @resource_id_to_uid[resource.id] = @uid
             xml.Resource {
@@ -114,6 +116,7 @@ module Loader::Concerns::Export
               xml.PeakUnits 1.00
               xml.IsEnterprise 1
               xml.CalendarUID @calendar_id_to_uid[resource.id]
+              xml.ActualWork get_scorm_time(spent_time) unless spent_time.zero?
             }
           end
         }
@@ -122,7 +125,7 @@ module Loader::Concerns::Export
           source_issues.select { |issue| issue.assigned_to_id? && issue.leaf? }.each do |issue|
             @uid += 1
             xml.Assignment {
-              unless 'estimated_hours'.in?(@export_ignore_fields) && !issue.leaf?
+              unless ignore_field?(:estimated_hours, :export) && !issue.leaf?
                 time = get_scorm_time(issue.estimated_hours)
                 xml.Work time
                 xml.RegularWork time
@@ -131,8 +134,18 @@ module Loader::Concerns::Export
               xml.UID @uid
               xml.TaskUID @task_id_to_uid[issue.id]
               xml.ResourceUID @resource_id_to_uid[issue.assigned_to_id]
-              xml.PercentWorkComplete issue.done_ratio unless 'done_ratio'.in?(@export_ignore_fields)
+              xml.PercentWorkComplete issue.done_ratio unless ignore_field?(:done_ratio, :export)
               xml.Units 1
+              unless issue.total_spent_hours.zero?
+                xml.TimephasedData {
+                  xml.Type 2
+                  xml.UID @uid
+                  xml.Unit 2
+                  xml.Value get_scorm_time(issue.total_spent_hours)
+                  xml.Start issue.start_date.to_time.to_s(:ms_xml)
+                  xml.Finish (issue.start_date.to_time + (issue.total_spent_hours.to_i).hours).to_s(:ms_xml)
+                }
+              end
             }
           end
         }
@@ -173,9 +186,9 @@ module Loader::Concerns::Export
 
   def get_scorm_time time
     return 'PT8H0M0S' if time.nil? || time.zero?
-    atime = time.to_s.split('.')
-    hours = atime.first.to_i
-    minutes = atime.last.to_i == 0 ? 0 : (60 * "0.#{atime.last}".to_f).to_i
+    time = time.to_s.split('.')
+    hours = time.first.to_i
+    minutes = time.last.to_i == 0 ? 0 : (60 * "0.#{time.last}".to_f).to_i
     return "PT#{hours}H#{minutes}M0S"
   end
 
@@ -186,12 +199,12 @@ module Loader::Concerns::Export
       xml.UID @uid
       xml.ID id.next
       xml.Name(struct.subject)
-      xml.Notes(struct.description) unless 'description'.in?(@export_ignore_fields)
+      xml.Notes(struct.description) unless ignore_field?(:description, :export)
       xml.Active 1
       xml.IsNull 0
       xml.CreateDate struct.created_on.to_s(:ms_xml)
       xml.HyperlinkAddress issue_url(struct.issue)
-      xml.Priority('priority'.in?(@export_ignore_fields) ? 500 : get_priority_value(struct.priority.name))
+      xml.Priority(ignore_field?(:priority, :export) ? 500 : get_priority_value(struct.priority.name))
       start_date = struct.issue.next_working_date(struct.start_date || struct.created_on.to_date)
       xml.Start start_date.to_time.to_s(:ms_xml)
       finish_date = if struct.due_date
@@ -217,6 +230,7 @@ module Loader::Concerns::Export
       #xml.RemainingDuration time
       #xml.RemainingWork time
       #xml.DurationFormat 7
+      xml.ActualWork get_scorm_time(struct.total_spent_hours)
       xml.Milestone 0
       xml.FixedCostAccrual 3
       xml.ConstraintType 0
