@@ -4,6 +4,7 @@ require_dependency 'string'
 require_dependency 'views_issues_index_bottom_hook'
 
 ActionDispatch::Callbacks.to_prepare do
+  SettingsHelper.__send__(:include, SettingsHelperPatch)
   Mailer.__send__(:include, LoaderMailer)
   IssueObserver.__send__(:include, LoaderIssueObserver)
   Redmine::Views::OtherFormatsBuilder.__send__(:include, LoaderOtherFormatsBuilder)
@@ -21,7 +22,6 @@ Redmine::Plugin.register :redmine_loader do
 
   requires_redmine version_or_higher: '2.3.0'
 
-  # Commented out because it refused to work in development mode
   default_tracker_alias = 'Tracker'
 
   settings default: {
@@ -30,7 +30,8 @@ Redmine::Plugin.register :redmine_loader do
       ignore_fields: {
         description: false,
         priority: false,
-        done_ratio: false
+        done_ratio: false,
+        estimated_hours: false
       }
     },
     import: {
@@ -44,7 +45,8 @@ Redmine::Plugin.register :redmine_loader do
         priority: false,
         done_ratio: false,
         due_date: false,
-        estimated_hours: false
+        estimated_hours: false,
+        spent_hours: false
       }
     },
   }, partial: 'settings/loader_settings'

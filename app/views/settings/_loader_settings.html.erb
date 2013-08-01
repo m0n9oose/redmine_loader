@@ -15,10 +15,7 @@
     <%= content_tag :label, 'Mark issues as private by default' %>
     <%= check_box_tag "settings[import][is_private_by_default]", 1, @settings[:import][:is_private_by_default] %>
   <% end %>
-  <%= content_tag :p do %>
-    <%= content_tag :label, 'Sync versions' %>
-    <%= check_box_tag "settings[import][sync_versions]", 1, @settings[:import][:sync_versions] %>
-  <% end %>
+  <%= loader_setting_checkbox(:import, :sync_versions) %>
   <%= content_tag :p do %>
     <%= content_tag :label, 'Max number of tasks to immediately import' %>
     <%= number_field_tag 'settings[import][instant_import_tasks]', @settings[:import][:instant_import_tasks], in: 10..100, step: 5 %>
@@ -28,50 +25,19 @@
     <%= select_tag "settings[import][tracker_id]", options_from_collection_for_select(Tracker.all, :id, :name, selected: @settings[:import][:tracker_id]) %>
   <% end %>
   <fieldset class="box" id="import_ignore_fields"><legend>Ignore fields</legend>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Estimated hours' %>
-      <%= check_box_tag "settings[import][ignore_fields][estimated_hours]", 1, @settings[:import][:ignore_fields][:estimated_hours] %>
-    <% end %>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Priority' %>
-      <%= check_box_tag "settings[import][ignore_fields][priority]", 1, @settings[:import][:ignore_fields][:priority] %>
-    <% end %>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Description' %>
-      <%= check_box_tag "settings[import][ignore_fields][description]", 1, @settings[:import][:ignore_fields][:description] %>
-    <% end %>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Done ratio' %>
-      <%= check_box_tag "settings[import][ignore_fields][done_ratio]", 1, @settings[:import][:ignore_fields][:done_ratio] %>
-    <% end %>
+    <%= loader_setting_checkbox(:import, :ignore_fields, :estimated_hours) %>
+    <%= loader_setting_checkbox(:import, :ignore_fields, :priority) %>
+    <%= loader_setting_checkbox(:import, :ignore_fields, :description) %>
+    <%= loader_setting_checkbox(:import, :ignore_fields, :done_ratio) %>
   </fieldset>
 </fieldset>
-
 <fieldset class="box" id="export_ignore_fields"><legend>Export settings</legend>
-  <%= content_tag :p do %>
-    <%= content_tag :label, 'Sync versions' %>
-    <%= check_box_tag "settings[export][sync_versions]", 1, @settings[:export][:sync_versions] %>
-  <% end %>
+  <%= loader_setting_checkbox(:export, :sync_versions) %>
   <fieldset class="box" id="export_ignore_fields"><legend>Ignore fields</legend>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Estimated hours' %>
-      <%= check_box_tag "settings[export][ignore_fields][estimated_hours]", 1, @settings[:export][:ignore_fields][:estimated_hours] %>
-    <% end %>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Spent hours' %>
-      <%= check_box_tag "settings[export][ignore_fields][spent_hours]", 1, @settings[:export][:ignore_fields][:spent_hours] %>
-    <% end %>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Priority' %>
-      <%= check_box_tag "settings[export][ignore_fields][priority]", 1, @settings[:export][:ignore_fields][:priority] %>
-    <% end %>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Description' %>
-      <%= check_box_tag "settings[export][ignore_fields][description]", 1, @settings[:export][:ignore_fields][:description] %>
-    <% end %>
-    <%= content_tag :p do %>
-      <%= content_tag :label, 'Done ratio' %>
-      <%= check_box_tag "settings[export][ignore_fields][done_ratio]", 1, @settings[:export][:ignore_fields][:done_ratio] %>
-    <% end %>
+    <%= loader_setting_checkbox(:export, :ignore_fields, :estimated_hours) %>
+    <%= loader_setting_checkbox(:export, :ignore_fields, :spent_hours) %>
+    <%= loader_setting_checkbox(:export, :ignore_fields, :priority) %>
+    <%= loader_setting_checkbox(:export, :ignore_fields, :description) %>
+    <%= loader_setting_checkbox(:export, :ignore_fields, :done_ratio) %>
   </fieldset>
 </fieldset>
