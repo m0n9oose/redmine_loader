@@ -28,7 +28,7 @@ module Loader::Concerns::Import
 
     tracker_field = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:tracker_alias]}']/FieldID").try(:text).try(:to_i)
     issue_rid = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:redmine_id_alias]}']/FieldID").try(:text).try(:to_i)
-    redmine_task_status = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:redmine_task_status]}']/FieldID").try(:text).try(:to_i)
+    redmine_task_status = doc.xpath("Project/ExtendedAttributes/ExtendedAttribute[Alias='#{@settings[:redmine_status_alias]}']/FieldID").try(:text).try(:to_i)
     default_issue_status_id = IssueStatus.default.id
 
     doc.xpath('Project/Tasks/Task').each do |task|

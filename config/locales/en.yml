@@ -15,6 +15,9 @@ en:
   assigned_to: Assigned to
   requires: Predecessors
   export_issue: Export Issue
+  field_spent_hours: Spent hours
+  field_sync_versions: Sync versions
+  field_is_private_by_default: Mark issues as private by default
   update_existing: Update existing
   about_analyzed: The tasks found in the file are listed below. Only items with a ticked check box next to them will be imported. Once happy with your selection, use the  "Import selected issues" button to begin the import process. To abandon the import, use the "Back" link.
   no_tasks_were_selected: No tasks were selected for import. Please select at least one task and try again.
@@ -34,3 +37,13 @@ en:
   can_find_html: You can find it %{link}
   here: here
   duplicates_warning: 'Tasks with UIDs: %{ids} cannot be processed. Please, check it.'
+  settings:
+    loader_settings:
+      tracker_alias: Alias for Tracker field
+      redmine_id_alias: Alias for Redmine issue ID field
+      redmine_status_alias: Alias for Redmine issue status
+      instant_import_tasks: Max number of tasks to immediately import
+      default_tracker: Tracker for project files
+      export_settings: Export settings
+      import_settings: Import settings
+      ignore_fields: Ignore fields

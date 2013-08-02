@@ -1,43 +1,44 @@
 <%= content_tag :p do %>
-  <%= content_tag :label, 'Alias for Redmine issue status' %>
-  <%= text_field_tag 'settings[redmine_task_status]', @settings[:redmine_task_status] %>
+  <%= content_tag :label, t('.redmine_status_alias') %>
+  <%= text_field_tag 'settings[redmine_status_alias]', @settings[:redmine_status_alias] %>
 <% end %>
 <%= content_tag :p do %>
-  <%= content_tag :label, 'Alias for Redmine issue ID field' %>
+  <%= content_tag :label, t('.redmine_id_alias') %>
   <%= text_field_tag 'settings[redmine_id_alias]', @settings[:redmine_id_alias] %>
 <% end %>
 <%= content_tag :p do %>
-  <%= content_tag :label, 'Alias for Tracker field' %>
+  <%= content_tag :label, t('.tracker_alias') %>
   <%= text_field_tag 'settings[tracker_alias]', @settings[:tracker_alias] %>
 <% end %>
-<fieldset class="box" id="import_ignore_fields"><legend>Import settings</legend>
-  <%= content_tag :p do %>
-    <%= content_tag :label, 'Mark issues as private by default' %>
-    <%= check_box_tag "settings[import][is_private_by_default]", 1, @settings[:import][:is_private_by_default] %>
-  <% end %>
+<%= content_tag :fieldset, class: 'box' do %>
+  <%= content_tag :legend, t('.import_settings') %>
+  <%= loader_setting_checkbox(:import, :is_private_by_default) %>
   <%= loader_setting_checkbox(:import, :sync_versions) %>
   <%= content_tag :p do %>
-    <%= content_tag :label, 'Max number of tasks to immediately import' %>
+    <%= content_tag :label, t('.instant_import_tasks') %>
     <%= number_field_tag 'settings[import][instant_import_tasks]', @settings[:import][:instant_import_tasks], in: 10..100, step: 5 %>
   <% end %>
   <%= content_tag :p do %>
-    <%= content_tag :label, 'Tracker for project files' %>
+    <%= content_tag :label, t('.default_tracker') %>
     <%= select_tag "settings[import][tracker_id]", options_from_collection_for_select(Tracker.all, :id, :name, selected: @settings[:import][:tracker_id]) %>
   <% end %>
-  <fieldset class="box" id="import_ignore_fields"><legend>Ignore fields</legend>
+  <%= content_tag :fieldset, class: 'box' do %>
+    <%= content_tag :legend, t('.ignore_fields') %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :estimated_hours) %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :priority) %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :description) %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :done_ratio) %>
-  </fieldset>
-</fieldset>
-<fieldset class="box" id="export_ignore_fields"><legend>Export settings</legend>
+  <% end %>
+<% end %>
+<%= content_tag :fieldset, class: 'box' do %>
+  <%= content_tag :legend, t('.export_settings') %>
   <%= loader_setting_checkbox(:export, :sync_versions) %>
-  <fieldset class="box" id="export_ignore_fields"><legend>Ignore fields</legend>
+  <%= content_tag :fieldset, class: 'box' do %>
+    <%= content_tag :legend, t('.ignore_fields') %>
     <%= loader_setting_checkbox(:export, :ignore_fields, :estimated_hours) %>
     <%= loader_setting_checkbox(:export, :ignore_fields, :spent_hours) %>
     <%= loader_setting_checkbox(:export, :ignore_fields, :priority) %>
     <%= loader_setting_checkbox(:export, :ignore_fields, :description) %>
     <%= loader_setting_checkbox(:export, :ignore_fields, :done_ratio) %>
-  </fieldset>
-</fieldset>
+  <% end %>
+<% end %>
