@@ -7,8 +7,8 @@ class LoaderController < ApplicationController
   before_filter :get_import_settings, only: [:analyze, :create]
   before_filter :get_export_settings, only: :export
 
-  include Loader::Concerns::Import
-  include Loader::Concerns::Export
+  include Concerns::Import
+  include Concerns::Export
   include QueriesHelper
   include SortHelper
 
@@ -55,7 +55,7 @@ class LoaderController < ApplicationController
   def create
     default_tracker_id = @settings[:import][:tracker_id]
     tasks_per_time = @settings[:import][:instant_import_tasks].to_i
-    sync_versions = @settings[:import][:sync_versions]
+    import_versions = @settings[:import][:sync_versions] == '1'
     tasks = params[:import][:tasks].select { |index, task_info| task_info[:import] == '1' }
     update_existing = params[:update_existing]
 
@@ -83,16 +83,16 @@ class LoaderController < ApplicationController
       issues_info = tasks_to_import.map { |issue| {title: issue.subject, uid: issue.uid, outlinenumber: issue.outlinenumber, predecessors: issue.predecessors} }
 
       if tasks_to_import.size <= tasks_per_time
-        uid_to_issue_id, outlinenumber_to_issue_id = Import.import_tasks(tasks_to_import, @project.id, user, nil, update_existing, sync_versions)
+        uid_to_issue_id, outlinenumber_to_issue_id = Import.import_tasks(tasks_to_import, @project.id, user, nil, update_existing, import_versions)
         Import.map_subtasks_and_parents(issues_info, @project.id, nil, uid_to_issue_id, outlinenumber_to_issue_id)
-        Import.map_versions_and_relations(milestones, issues, @project.id, nil, sync_versions, uid_to_issue_id)
+        Import.map_versions_and_relations(milestones, issues, @project.id, nil, import_versions, uid_to_issue_id)
 
         flash[:notice] = l(:imported_successfully) + issues.count.to_s
         redirect_to project_issues_path(@project)
         return
       else
         tasks_to_import.each_slice(tasks_per_time).each do |batch|
-          Import.delay(queue: import_name, priority: 1).import_tasks(batch, @project.id, user, import_name, update_existing, sync_versions)
+          Import.delay(queue: import_name, priority: 1).import_tasks(batch, @project.id, user, import_name, update_existing, import_versions)
         end
 
         issues_info.each_slice(50).each do |batch|
@@ -100,7 +100,7 @@ class LoaderController < ApplicationController
         end
 
         issues.each_slice(tasks_per_time).each do |batch|
-          Import.delay(queue: import_name, priority: 4).map_versions_and_relations(milestones, batch, @project.id, import_name, sync_versions)
+          Import.delay(queue: import_name, priority: 4).map_versions_and_relations(milestones, batch, @project.id, import_name, import_versions)
         end
 
         Mailer.delay(queue: import_name, priority: 5).notify_about_import(user, @project, date, issues_info) # send notification that import finished
@@ -112,7 +112,7 @@ class LoaderController < ApplicationController
     rescue => error
       flash[:error] = l(:unable_import) + error.to_s
       logger.debug "DEBUG: Unable to import tasks: #{ error }"
-   end
+    end
 
     redirect_to new_project_loader_path
   end
@@ -141,12 +141,12 @@ class LoaderController < ApplicationController
   end
 
   def get_import_settings
-    @is_private_by_default = @settings[:import][:is_private_by_default]
+    @is_private_by_default = @settings[:import][:is_private_by_default] == '1'
     get_ignore_fields(:import)
   end
 
   def get_export_settings
-    @export_versions = @settings[:export][:sync_versions]
+    @export_versions = @settings[:export][:sync_versions] == '1'
     get_ignore_fields(:export)
   end
 

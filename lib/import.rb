@@ -1,10 +1,8 @@
 class Import
   require 'yaml'
 
-  @tasks      = []
-  project_id = nil
+  @tasks = []
   @hashed_name = nil
-  update_existing = true
   NOT_USER_ASSIGNED = -65535
 
   attr_accessor :tasks, :project_id, :hashed_name, :update_existing

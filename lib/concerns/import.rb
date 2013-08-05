@@ -1,4 +1,4 @@
-module Loader::Concerns::Import
+module Concerns::Import
   extend ActiveSupport::Concern
 
   def build_tasks_to_import(raw_tasks)
@@ -43,14 +43,14 @@ module Loader::Concerns::Import
         struct.status_id = status_name.present? ? IssueStatus.find_by_name(status_name).id : default_issue_status_id
         struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
         struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
-        struct.subject = task.at('Name').try(:text).try(:strip)
+        struct.subject = task.at('Name').text.strip
         struct.start_date = task.at('Start').try(:text).try{|t| t.split("T")[0]}
         struct.due_date = task.at('Finish').try(:text).try{|t| t.split("T")[0]}
-        struct.spent_hours = task.at('ActualWork').try{ |e| e.text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') }
+        struct.spent_hours = task.at('ActualWork').try{ |e| e.text.delete("PT").split(/H|M|S/)[0...-1].join(':') }
         struct.priority = task.at('Priority').try(:text)
         struct.tracker_name = task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").try(:text)
         struct.tid = task.xpath("ExtendedAttribute[FieldID='#{issue_rid}']/Value").try(:text).try(:to_i)
-        struct.estimated_hours = task.at('Duration').try{ |e| e.text.delete("PT").split(/[H||M||S]/)[0...-1].join(':') } if struct.milestone.try(:zero?)
+        struct.estimated_hours = task.at('Duration').try{ |e| e.text.delete("PT").split(/H|M|S/)[0...-1].join(':') } if struct.milestone.try(:zero?)
         struct.done_ratio = task.at('PercentComplete').try(:text).try(:to_i)
         struct.description = task.at('Notes').try(:text).try(:strip)
         struct.predecessors = task.xpath('PredecessorLink').map { |predecessor| predecessor.at('PredecessorUID').try(:text).try(:to_i) }
@@ -74,15 +74,14 @@ module Loader::Concerns::Import
 
 
   def set_assignment_to_task(doc, tasks)
-    uid_tasks = tasks.map(&:uid)
     resource_by_user = get_bind_resource_users(doc)
     doc.xpath('Project/Assignments/Assignment').each do |as|
       resource_id = as.at('ResourceUID').text.to_i
       next if resource_id == Import::NOT_USER_ASSIGNED
       task_uid = as.at('TaskUID').text.to_i
-      task = tasks.detect { |task| task.uid == task_uid }
-      next unless task
-      task.assigned_to = resource_by_user[resource_id]
+      assigned_task = tasks.detect { |task| task.uid == task_uid }
+      next unless assigned_task
+      assigned_task.assigned_to = resource_by_user[resource_id]
     end
   end
 

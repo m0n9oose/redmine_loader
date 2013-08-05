@@ -25,7 +25,4 @@ function clearDates(el) {
       $(this).val('');
     });
   }
-  else
-  {
-  }
 }
