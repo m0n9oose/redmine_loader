@@ -35,32 +35,32 @@ module Concerns::Import
       begin
         logger.debug "Project/Tasks/Task found"
         struct = ImportTask.new
-        struct.uid = task.at('UID').try(:text).try(:to_i)
+        struct.uid = task.value_at('UID', :to_i)
         next if struct.uid == 0
-        struct.milestone = task.at('Milestone').try(:text).try(:to_i)
+        struct.milestone = task.value_at('Milestone', :to_i)
         next unless struct.milestone.try(:zero?)
         status_name = task.xpath("ExtendedAttribute[FieldID='#{redmine_task_status}']/Value").try(:text)
         struct.status_id = status_name.present? ? IssueStatus.find_by_name(status_name).id : default_issue_status_id
-        struct.level = task.at('OutlineLevel').try(:text).try(:to_i)
-        struct.outlinenumber = task.at('OutlineNumber').try(:text).try(:strip)
+        struct.level = task.value_at('OutlineLevel', :to_i)
+        struct.outlinenumber = task.value_at('OutlineNumber', :strip)
         struct.subject = task.at('Name').text.strip
-        struct.start_date = task.at('Start').try(:text).try{|t| t.split("T")[0]}
-        struct.due_date = task.at('Finish').try(:text).try{|t| t.split("T")[0]}
+        struct.start_date = task.value_at('Start', :split, "T").try(:fetch, 0)
+        struct.due_date = task.value_at('Finish', :split, "T").try(:fetch, 0)
         struct.spent_hours = task.at('ActualWork').try{ |e| e.text.delete("PT").split(/H|M|S/)[0...-1].join(':') }
         struct.priority = task.at('Priority').try(:text)
         struct.tracker_name = task.xpath("ExtendedAttribute[FieldID='#{tracker_field}']/Value").try(:text)
         struct.tid = task.xpath("ExtendedAttribute[FieldID='#{issue_rid}']/Value").try(:text).try(:to_i)
         struct.estimated_hours = task.at('Duration').try{ |e| e.text.delete("PT").split(/H|M|S/)[0...-1].join(':') } if struct.milestone.try(:zero?)
-        struct.done_ratio = task.at('PercentComplete').try(:text).try(:to_i)
-        struct.description = task.at('Notes').try(:text).try(:strip)
-        struct.predecessors = task.xpath('PredecessorLink').map { |predecessor| predecessor.at('PredecessorUID').try(:text).try(:to_i) }
-        struct.delays = task.xpath('PredecessorLink').map { |predecessor| predecessor.at('LinkLag').try(:text).try(:to_i) }
+        struct.done_ratio = task.value_at('PercentComplete', :to_i)
+        struct.description = task.value_at('Notes', :strip)
+        struct.predecessors = task.xpath('PredecessorLink').map { |predecessor| predecessor.value_at('PredecessorUID', :to_i) }
+        struct.delays = task.xpath('PredecessorLink').map { |predecessor| predecessor.value_at('LinkLag', :to_i) }
 
         tasks.push(struct)
 
       rescue => error
         logger.debug "DEBUG: Unrecovered error getting tasks: #{error}"
-        @unprocessed_task_ids.push task.at('ID').try(:text).try(:to_i)
+        @unprocessed_task_ids.push task.value_at('ID', :to_i)
       end
     end
 
@@ -100,8 +100,8 @@ module Concerns::Import
   def get_resources(doc)
     resources = {}
     doc.xpath('Project/Resources/Resource').each do |resource|
-      resource_uid = resource.at('UID').try(:text).try(:to_i)
-      resource_name_element = resource.at('Name').try(:text)
+      resource_uid = resource.value_at('UID', :to_i)
+      resource_name_element = resource.value_at('Name', :strip)
       next unless resource_name_element
       resources[resource_uid] = resource_name_element
     end

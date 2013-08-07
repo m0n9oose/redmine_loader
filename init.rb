@@ -1,6 +1,7 @@
 require 'redmine'
 
 require_dependency 'string'
+require_dependency 'element'
 require_dependency 'views_issues_index_bottom_hook'
 
 ActionDispatch::Callbacks.to_prepare do
