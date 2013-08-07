@@ -90,7 +90,7 @@ module Concerns::Import
     users_list = @project.assignable_users
     resource_by_user = {}
     resources.each do |uid, name|
-      user_found = users_list.detect { |user| user.login == name }
+      user_found = users_list.detect { |user| (user.login || user.lastname) == name }
       next unless user_found
       resource_by_user[uid] = user_found.id
     end
