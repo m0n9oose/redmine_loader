@@ -25,6 +25,7 @@
   <%= content_tag :fieldset, class: 'box' do %>
     <%= content_tag :legend, t('.ignore_fields') %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :estimated_hours) %>
+    <%= loader_setting_checkbox(:import, :ignore_fields, :spent_hours) %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :priority) %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :description) %>
     <%= loader_setting_checkbox(:import, :ignore_fields, :done_ratio) %>

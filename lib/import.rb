@@ -37,9 +37,22 @@ class Import
             issue.due_date = (Date.parse(source_issue.start, false) + ((source_issue.duration.to_f/40.0)*7.0).to_i).to_s
           end
 
-          issue.assigned_to_id = source_issue.try(:assigned_to)
+          issue.assigned_to_id = source_issue.assigned_to
 
-          puts "DEBUG: Issue #{issue.subject} imported" if issue.save!
+          if issue.save!
+            puts "DEBUG: Issue #{issue.subject} imported"
+
+            if source_issue.spent_hours.to_f > issue.total_spent_hours
+              TimeEntry.create do |te|
+                te.user_id = source_issue.assigned_to
+                te.project_id = project_id
+                te.hours = source_issue.spent_hours.to_f - issue.total_spent_hours
+                te.spent_on = Date.today
+                te.issue_id = issue.id
+              end
+            end
+          end
+
           # Now that we know this issue's Redmine issue ID, save it off for later
           uid_to_issue_id[source_issue.uid] = issue.id
           #Save the Issue's ID with the outlineNumber as an index, to set the parent_id later
