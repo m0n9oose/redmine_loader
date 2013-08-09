@@ -1,14 +1,29 @@
 Redmine Loader
-==============
 
+=============
+Key features:
+* uses fast xml parsing ang generation with Nokogiri;
+* can import immadiately and in background job (using delayed job);
+* allows disable some fields and versions/milestones for sync (separately for import and export);
+* supports almost all attributes of tasks (hierarchy, status name (custom field), assignee, tracker (custom field), relations (preceses/follows), task name, description, estimated hrs, spent hrs, project, priority, redmine id (custom field), fixed version, link to redmine issue, ...);
+* allows export whole project and custom query;
+* has flexible permissions setting;
+* allows preview and edit tasks before import in redmine;
+* email notification for author of import when import finished (sends only when import procedes as background job) without notifications for participants of tasks (no spam);
+* has ability to update existing tasks or forced create new.
 
-My first attempt at hacking some ruby together. Probably full of stupid stuff, but it seems to work.
+Plugin initially based on redmine_loader plugin. Now almost completely rewritten.
 
+========
+Install:
+    cd redmine
+    git clone git@github.com:m0n9oose/redmine_loader.git plugins/redmine_loader
+    rake redmine:plugins:migrate RAILS_ENV=production
+(migration needs for delayed job)
 
-Essentially, and largely through the miracle of cut and paste, I took code from an open source app called trackrecord and reworked this as a Redmine plugin.
+==========
+Uninstall:
+    rake redmine:plugins:migrate NAME=redmine_loader VERSION=0 RAILS_ENV=production
+    rm -Rf plugins/redmine_loader public/plugin_assets/redmine_loader
 
-Supports XML files output by MS Project etc and does a simple load into a default tracker for the selected project.
-
-
-Developed under Mac OS X.  Tested on linux (fedora 11).
-
+and restart redmine
