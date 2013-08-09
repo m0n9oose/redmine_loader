@@ -4,7 +4,6 @@ module LoaderHelper
   end
 
   def loader_tracker_select_tag(project, tracker_name, index)
-    map_trackers = Hash[@project.trackers.map { |tracker| [tracker.name, tracker.id] }]
     tracker_id = if map_trackers.has_key?(tracker_name)
                    map_trackers[tracker_name]
                  else
@@ -34,5 +33,9 @@ module LoaderHelper
 
   def duplicate_index task_subject
     @duplicates.index(task_subject).next if task_subject.in?(@duplicates)
+  end
+
+  def map_trackers
+    @map_trackers ||= Hash[@project.trackers.map { |tracker| [tracker.name, tracker.id] }]
   end
 end
