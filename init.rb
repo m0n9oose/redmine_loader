@@ -32,7 +32,8 @@ Redmine::Plugin.register :redmine_loader do
         description: false,
         priority: false,
         done_ratio: false,
-        estimated_hours: false
+        estimated_hours: false,
+        spent_hours: false
       }
     },
     import: {
@@ -45,7 +46,6 @@ Redmine::Plugin.register :redmine_loader do
         description: false,
         priority: false,
         done_ratio: false,
-        due_date: false,
         estimated_hours: false,
         spent_hours: false
       }

@@ -1,4 +1,4 @@
-<%= content_tag :tr, class: cycle('even', 'odd'), align: 'center', valign: 'top' do -%>
+<tr class=<%= cycle('even', 'odd') %>, align='center', valign='top'>
   <td>
     <%= check_box_tag("import[tasks][#{index}][import]", '1', true, {class: 'import'}) %>
   </td>
@@ -16,7 +16,7 @@
     <%= text_field_tag "import[tasks][#{index}][uid]", h(task.uid), disabled: true, style: 'width:3em' %>
   </td>
   <td align="left" class="task_subject">
-    <%= content_tag(:span, duplicate_index(task.subject), class: 'dup-index') %>
+    <span class='dup-index'><%= duplicate_index(task.subject) %></span>
     <%= text_field_tag "import[tasks][#{index}][subject]", h(task.subject), {size: 50, class: :task_subject} %>
   </td>
   <td align="left">
@@ -49,4 +49,4 @@
   <td>
     <%= h(task.predecessors.join(', ')) %>
   </td>
-<% end %>
+</tr>

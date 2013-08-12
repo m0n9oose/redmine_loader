@@ -133,7 +133,7 @@ class LoaderController < ApplicationController
     sort_init(@query.sort_criteria.empty? ? [['id', 'desc']] : @query.sort_criteria)
     sort_update(@query.sortable_columns)
     @query.sort_criteria = sort_criteria.to_a
-    @query_issues = @query.issues(:include => [:assigned_to, :tracker, :priority, :fixed_version], :order => sort_clause)
+    @query_issues = @query.issues(include: [:assigned_to, :tracker, :priority, :fixed_version], order: sort_clause)
   end
 
   def get_plugin_settings

@@ -8,17 +8,17 @@
     <%= content_tag :p, l(:warning_text).html_safe,  class: 'dup', align: "center", colspan: 5 if @duplicates.any? %>
     <table border="0" cellspacing="0" cellpadding="2" align="center" class="bulk_task_import">
       <tr valign="middle" align="center" class="info">
-        <%= content_tag(:th, link_to_function(l(:import), 'toggleCheckboxesSelection(this);', class: 'import')) %>
+        <th><%= link_to_function(l(:import), 'toggleCheckboxesSelection(this);', class: 'import') %>
         <th>UID</th>
-        <%= content_tag(:th, l(:name)) %>
-        <%= content_tag(:th, l(:tracker)) %>
-        <%= content_tag(:th, link_to_function(l(:start_date), 'clearDates(this);', class: 'start_date')) %>
-        <%= content_tag(:th, link_to_function(l(:end_date), 'clearDates(this);', class: 'end_date')) %>
-        <%= content_tag(:th, '%') unless ignore_field?(:done_ratio, :import) %>
-        <%= content_tag(:th, l(:assigned_to)) %>
+        <th><%= l(:name) %></th>
+        <th><%= l(:tracker) %></th>
+        <th><%= link_to_function(l(:start_date), 'clearDates(this);', class: 'start_date') %></th>
+        <th><%= link_to_function(l(:end_date), 'clearDates(this);', class: 'end_date') %></th>
+        <%= content_tag(:th, '%') unless ignore_field?(:done_ratio, :import) %></th>
+        <th><%= l(:assigned_to) %></th>
         <%= content_tag(:th, l(:priority)) unless ignore_field?(:priority, :import) %>
-        <%= content_tag(:th, link_to_function(l(:field_is_private), 'toggleCheckboxesSelection(this);', class: 'is_private')) %>
-        <%= content_tag(:th, l(:requires)) %>
+        <th><%= link_to_function(l(:field_is_private), 'toggleCheckboxesSelection(this);', class: 'is_private') %></th>
+        <th><%= l(:requires) %></th>
       </tr>
       <% @import.tasks.each_with_index do |task, index| %>
         <%= render partial: 'task', locals: {task: task, index: index} %>
@@ -29,7 +29,7 @@
           <%= label_tag :update_existing, t(:update_existing), {class: :update_existing} %>
         </td>
         <td align="right" colspan="10"><%= f.submit(l(:import_selected), {name: 'import[import_selected]'}) %></td>
-        <%= content_tag(:td, link_to(l(:back), {controller: 'loader', action: 'new'})) %>
+        <td><%= link_to(l(:back), new_project_loader_path) %></td>
       </tr>
     </table>
   <% end %>
