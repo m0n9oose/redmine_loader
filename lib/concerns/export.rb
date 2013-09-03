@@ -142,8 +142,8 @@ module Concerns::Export
                   xml.UID @uid
                   xml.Unit 2
                   xml.Value get_scorm_time(issue.total_spent_hours)
-                  xml.Start issue.start_date.to_time.to_s(:ms_xml)
-                  xml.Finish (issue.start_date.to_time + (issue.total_spent_hours.to_i).hours).to_s(:ms_xml)
+                  xml.Start (issue.start_date || issue.created_on).to_time.to_s(:ms_xml)
+                  xml.Finish ((issue.start_date || issue.created_on).to_time + (issue.total_spent_hours.to_i).hours).to_s(:ms_xml)
                 }
               end
             }
