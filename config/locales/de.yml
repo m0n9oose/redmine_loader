@@ -1,0 +1,49 @@
+de:
+  menu_caption: MS Project
+  import_tasks: Importieren
+  import_selected: Ausgewählte Aufgaben importieren
+  export_tasks: Exportieren
+  analyze: Analyzieren
+  analyzing: Analyziere...
+  import: Importieren?
+  back: Zurück
+  name: Name
+  tracker: Tracker
+  start_date: Beginndatum
+  end_date: Abgabedatum
+  priority: Priorität
+  assigned_to: Zugeweisen an
+  requires: Vorgänger
+  export_issue: Aufgaben exportieren
+  field_spent_hours: Aufgewendete Zeit
+  field_sync_versions: Versionen synronisieren
+  field_is_private_by_default: Aufgaben sind voreingestellt auf privat gesetzt
+  update_existing: Bestehende aktualisieren
+  about_analyzed: Die Aufgaben aus der Importdatei sind nachfolgenden aufgeführt. Nur  markierte Aufgaben werden importiert. Nach Abschluss Ihrer Wahl klicken Sie den Knopf "Auswahl importieren" um den Importvorgang zu starten. Zum Abbruch des Vorgangs bitte "Zurück" klicken.
+  no_tasks_were_selected: Es wurden keine Aufgaben zum Import gewählt. Bitte wählen Sie mindestens eine Aufgabe aus.
+  no_valid_default_tracker: Kein gültiger Standard Tracker konfigruiert. Informieren Sie den Administrator zur Behebung des Problems.
+  tasks_read_successfully: Aufgaben erfolgreich eingelesen. Bitte wählen Sie gewünschte Aufgaben für den Import aus.
+  no_tasks_found: Kein Aufgaben zum Einlesen gefunden.
+  failed_read: 'Fehler beim Lesen der Datei: '
+  choose_file_warning: Bitte wählen Sie eine Datei vor dem Klick auf 'Analysieren'.
+  unable_import: 'Import der Aufgaben gescheitert: '
+  imported_successfully: 'Aufgaben erfolgreich importiert: '
+  generate_xml: Erstelle eine Ms Project XML Export Exportdatei mit allen Tickets.
+  warning_text: <strong>Warnung!</strong> Einige Aufgaben sind gleich bzw. nicht eindeutig, deswegen müssen sie diese vor dem Import umbenennen. Wenn noch Fehler erschienen, haben sie vermutlich Aufgaben vergessen.
+  your_tasks_being_imported: Ihre Aufgaben werden sobald wie möglich importiert. Sie erhalten einen Bestätigung nach Abschluss des Vorgangs.
+  subject: 'Ihre Aufgaben wurden in das Projekt importiert '
+  congrats: Gratulation, Ihre Aufgaben
+  were_imported: wurden erfolgreich in das Projekt improtiert 
+  can_find_html: Sie finden die Aufgaben hier %{link}
+  here: hier
+  duplicates_warning: 'Die Aufgaben mit den UIDs %{ids} konnten nicht verarbeitet werden. Bitte prüfen Sie das.'
+  settings:
+    loader_settings:
+      tracker_alias: Alias für das Tracker Feld
+      redmine_id_alias: Alias für die Ticket ID
+      redmine_status_alias: Alias für den  Ticket Status 
+      instant_import_tasks: Maximale Anzahl von Aufgaben die aus einmal importiert werden sollen
+      default_tracker: Tracker für Projketdateien
+      export_settings: Exporteinstellungen
+      import_settings: Importeinstellungen
+      ignore_fields: Ignoriere diese Felder
