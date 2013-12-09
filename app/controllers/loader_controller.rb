@@ -137,7 +137,7 @@ class LoaderController < ApplicationController
   end
 
   def get_plugin_settings
-    @settings = Setting.plugin_redmine_loader
+    @settings ||= Setting.plugin_redmine_loader
   end
 
   def get_import_settings

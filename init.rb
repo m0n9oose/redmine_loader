@@ -7,7 +7,7 @@ require_dependency 'views_issues_index_bottom_hook'
 ActionDispatch::Callbacks.to_prepare do
   SettingsHelper.__send__(:include, SettingsHelperPatch)
   Mailer.__send__(:include, LoaderMailer)
-  IssueObserver.__send__(:include, LoaderIssueObserver)
+  Issue.__send__(:include, IssuePatch)
   Redmine::Views::OtherFormatsBuilder.__send__(:include, LoaderOtherFormatsBuilder)
 end
 
