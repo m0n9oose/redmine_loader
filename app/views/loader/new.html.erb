@@ -3,7 +3,7 @@
   <h1><%= l(:import_tasks) %></h1>
   <%= form_for(:import, url: analyze_project_loader_path, html: {id: 'import', multipart: true}) do |f| %>
     <%= render partial: 'about' %>
-    <%= f.file_field 'xmlfile' %>
+    <%= f.file_field 'xmlfile', accept: 'application/xml,application/gzip' %>
     <tr>
       <%= f.submit(l(:analyze), {name: 'import[analyze]', disable_with: l(:analyzing)}) %>
     </tr>
