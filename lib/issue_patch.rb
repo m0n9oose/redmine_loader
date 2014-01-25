@@ -10,7 +10,7 @@ module IssuePatch
   module InstanceMethods
     def send_notification_with_aware_of_import
       if subject =~ /_imported/
-        self.update_column(:subject, issue.subject.gsub('_imported', ''))
+        self.update_column(:subject, subject.gsub('_imported', ''))
       else
         send_notification_without_aware_of_import
       end
