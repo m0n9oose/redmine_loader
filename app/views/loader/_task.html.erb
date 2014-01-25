@@ -13,7 +13,7 @@
     <%= hidden_field_tag "import[tasks][#{index}][predecessors]", h(task.predecessors.join(', ')) %>
     <%= hidden_field_tag "import[tasks][#{index}][status_id]", h(task.status_id) %>
     <%= hidden_field_tag "import[tasks][#{index}][spent_hours]", h(task.spent_hours) unless ignore_field?(:spent_hours, :import) %>
-    <%= text_field_tag "import[tasks][#{index}][uid]", h(task.uid), disabled: true, style: 'width:3em' %>
+    <%= text_field_tag "import[tasks][#{index}][uid]", h(task.uid), readonly: true, style: 'width:3em' %>
   </td>
   <td align="left" class="task_subject">
     <span class='dup-index'><%= duplicate_index(task.subject) %></span>
