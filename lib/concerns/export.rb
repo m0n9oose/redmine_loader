@@ -230,7 +230,7 @@ module Concerns::Export
       #xml.RemainingDuration time
       #xml.RemainingWork time
       #xml.DurationFormat 7
-      xml.ActualWork get_scorm_time(struct.total_spent_hours)
+      xml.ActualWork get_scorm_time(struct.total_spent_hours) unless struct.total_spent_hours.zero?
       xml.Milestone 0
       xml.FixedCostAccrual 3
       xml.ConstraintType 0
