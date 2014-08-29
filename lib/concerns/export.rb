@@ -233,7 +233,8 @@ module Concerns::Export
       xml.ActualWork get_scorm_time(struct.total_spent_hours)
       xml.Milestone 0
       xml.FixedCostAccrual 3
-      xml.ConstraintType 0
+      xml.ConstraintType 2
+      xml.ConstraintDate start_date.to_time.to_s(:ms_xml)
       xml.IgnoreResourceCalendar 0
       parent = struct.leaf? ? 0 : 1
       xml.Summary(parent)
