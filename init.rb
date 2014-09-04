@@ -23,11 +23,12 @@ Redmine::Plugin.register :redmine_loader do
 
   requires_redmine version_or_higher: '2.3.0'
 
-  default_tracker_alias = 'Tracker'
-
   settings default: {
+    tracker_alias: 'Tracker',
+    redmine_id_alias: 'RID',
+    redmine_status_alias: 'RSTATUS',
     export: {
-	    sync_versions: false,
+      sync_versions: false,
       ignore_fields: {
         description: false,
         priority: false,
@@ -37,11 +38,9 @@ Redmine::Plugin.register :redmine_loader do
       }
     },
     import: {
-	    is_private_by_default: false,
-	    instant_import_tasks: 10,
-	    sync_versions: false,
-	    tracker_alias: default_tracker_alias,
-      redmine_id_alias: 'RID',
+      is_private_by_default: false,
+      instant_import_tasks: 10,
+      sync_versions: false,
       ignore_fields: {
         description: false,
         priority: false,
