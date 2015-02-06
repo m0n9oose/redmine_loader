@@ -1,0 +1,49 @@
+en:
+  menu_caption: MS Project
+  import_tasks: Importar tareas
+  import_selected: Importar tareas seleccionadas
+  export_tasks: Exportar tareas
+  analyze: Analizar
+  analyzing: Analizando...
+  import: Importar?
+  back: Atrás
+  name: Nombre
+  tracker: Tracker
+  start_date: Fecha Inicio
+  end_date: Fecha Fin
+  priority: Prioridad
+  assigned_to: Asignado a
+  requires: Predecesora
+  export_issue: Exportar Petición
+  field_spent_hours: Horas dedicadas
+  field_sync_versions: Sincronizar versiones
+  field_is_private_by_default: Marcar peticiones como privadas por defecto
+  update_existing: Actualizar existentes
+  about_analyzed: A continuación se listan las tareas del archivo. Sólamente se importarán aquellas que estén tildadas. Una vez que finalizada la selección, haga click en el botón "Importar tareas seleccionadas" para iniciar el proceso de importación. Para abandonar la importación haga click en el botón "Atrás".
+  no_tasks_were_selected: Ninguna tarea seleccionada para importar. Por favor seleccione al menos una y vuelva a intentar.
+  no_valid_default_tracker: No hay ningún Tracker por defecto definido. Por favor pida a su administrador del sistema que resuelva esto.
+  tasks_read_successfully: Peticiones leidas con éxito. Por favor elija los items a importar.
+  no_tasks_found: No se encontraron peticiones usables en el archivo.
+  failed_read: 'Error al leer el archivo: '
+  choose_file_warning: Por favor elija un archivo antes de presionar el botón 'Analizar'.
+  unable_import: 'No se pudo importar la petición: '
+  imported_successfully: 'Peticiones importadas con éxito: '
+  generate_xml: Generar un archivo XML para exportar todas sus peticiones de redmine a MS Project.
+  warning_text: <strong>Atención!</strong> Algunas peticiones son idénticas. Deberá renombrarlas para importarlas. Si ve errores puede deberse a que se olvidó de alguna.
+  your_tasks_being_imported: Sus tareas se importarán a la brevedad. Recibirá notificaciones por e-mail.
+  subject: 'Sus peticiones fueron importadas al proyecto '
+  congrats: Felicitaciones, sus peticiones 
+  were_imported: se importaron exitosamente
+  can_find_html: Puede encontrarla aqui %{link}
+  here: here
+  duplicates_warning: 'Las peticiones con UIDs: %{ids} no se pudieron procesar. Por favor, verifíquelas.'
+  settings:
+    loader_settings:
+      tracker_alias: Alias para el campo Tracker
+      redmine_id_alias: Alias para el campo Redmine issue
+      redmine_status_alias: Alias para Redmine issue status
+      instant_import_tasks: Max número de peticiones a importar inmediatamente
+      default_tracker: Tracker para archivos de proyecto
+      export_settings: Exportar configuración
+      import_settings: Importar configuración
+      ignore_fields: Ignorar campos
